@@ -1,0 +1,45 @@
+# autotools stuff
+/aclocal.m4
+/autom4te.cache/
+/build-aux/compile
+/build-aux/config.guess
+/build-aux/config.sub
+/build-aux/depcomp
+/build-aux/install-sh
+/build-aux/missing
+/build-aux/test-driver
+/config.h.in
+/configure
+/ltmain.sh
+/Makefile.in
+/m4/libtool.m4
+/m4/lt*.m4
+
+# Dist tarballs
+hst-*.tar.xz
+
+# In-source build artefacts
+*.a
+*.o
+*.la
+*.lo
+.deps
+.dirstamp
+.libs/
+/config.h
+/config.log
+/config.status
+/hst
+/libhst.la
+/libtool
+/Makefile
+/stamp-h1
+test*.log
+test*.trs
+/tests/test-*
+!/tests/test-*.cc
+
+# Common out-of-source build locations
+/.build*
+/build*
+/build*
