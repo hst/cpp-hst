@@ -19,6 +19,16 @@ LT_INIT
 
 AC_PROG_CXX
 
+# TAP support
+AC_PROG_AWK
+
+# Valgrind support
+AX_VALGRIND_DFLT([memcheck], [on])
+AX_VALGRIND_DFLT([helgrind], [off])
+AX_VALGRIND_DFLT([drd], [off])
+AX_VALGRIND_DFLT([sgcheck], [off])
+AX_VALGRIND_CHECK()
+
 AC_OUTPUT([Makefile])
 
 cat <<EOF
