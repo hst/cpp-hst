@@ -14,9 +14,8 @@
 
 namespace tests {
 
-/*------------------------------------------------------------------------------
- * Test cases
- */
+//------------------------------------------------------------------------------
+// Test cases
 
 // An interface that must be implemented by each step that can be performed
 // during a test.
@@ -141,9 +140,8 @@ class TestCaseGroup : public TestStep {
 
 #define HERE  __FILE__, __LINE__
 
-/*------------------------------------------------------------------------------
- * Common checks
- */
+//------------------------------------------------------------------------------
+// Common checks
 
 // Mark the current test case as failing.
 std::ostream&

@@ -1,0 +1,15 @@
+/* -*- coding: utf-8 -*-
+ * -----------------------------------------------------------------------------
+ * Copyright © 2016, HST Project.
+ * Please see the COPYING file in this distribution for license details.
+ * -----------------------------------------------------------------------------
+ */
+
+#include "test-cases.h"
+
+int
+main(int argc, char** argv)
+{
+    tests::test_case_registry.run_all();
+    return 0;
+}
