@@ -1,0 +1,19 @@
+# Run a CI test every time we merge in a pull request.
+branches:
+  only:
+    - master
+
+# Test both in-source and out-of-source builds.
+env:
+  - BUILD_TYPE=in_source
+  - BUILD_TYPE=out_of_source
+
+language: cpp
+script: .travis/test.sh
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.8
+      - valgrind
