@@ -30,7 +30,7 @@ Event::Index
 Event::find_or_create_event(const string& name)
 {
     if (!table_) {
-        table_ = std::make_unique<Table>();
+        table_ = std::unique_ptr<Event::Table>(new Event::Table);
     }
 
     Index& index = table_->indices[name];
