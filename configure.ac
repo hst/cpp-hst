@@ -8,6 +8,7 @@ AC_INIT([hst], [0.0.0], [info@hst-project.net])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/hst/hst.cc])
+AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([foreign no-dist-gzip dist-xz subdir-objects])
 AM_MAINTAINER_MODE([enable])  # Allow packagers to disable if they want
 AM_SILENT_RULES([yes])
@@ -18,6 +19,7 @@ LT_INIT
 : ${CPPFLAGS="-Wall -Werror"}
 
 AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX(11, noext, mandatory)
 
 # TAP support
 AC_PROG_AWK
