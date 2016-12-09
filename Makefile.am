@@ -38,4 +38,4 @@ LDADD = libhst.la libtests.la
 tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
 
-dist_doc_DATA = README
+dist_doc_DATA = README.md
