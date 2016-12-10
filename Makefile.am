@@ -16,7 +16,8 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 @VALGRIND_CHECK_RULES@
 
 libhst_la_SOURCES = \
-	src/libhst/event.cc
+	src/libhst/event.cc \
+	src/libhst/lts.cc
 
 hst_SOURCES = \
 	src/hst/hst.cc
@@ -26,7 +27,8 @@ hst_LDADD = libhst.la
 # are checked before larger features that build on them.
 check_PROGRAMS = \
 	tests/test-harness \
-	tests/test-events
+	tests/test-events \
+	tests/test-lts
 
 check_LTLIBRARIES = libtests.la
 libtests_la_SOURCES = \
@@ -37,5 +39,6 @@ libtests_la_SOURCES = \
 LDADD = libhst.la libtests.la
 tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
+tests_test_lts_LDFLAGS = -no-install
 
 dist_doc_DATA = README.md
