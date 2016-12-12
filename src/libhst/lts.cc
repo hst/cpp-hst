@@ -29,6 +29,11 @@ std::ostream& operator<<(std::ostream& out, const ProcessSet& processes)
     return out << "}";
 }
 
+LTS::LTS() : stop(0)
+{
+    stop = add_process();
+}
+
 Process
 LTS::add_process()
 {
@@ -36,7 +41,7 @@ LTS::add_process()
 }
 
 void
-LTS::add_edge(Process from, Event event, Process to)
+LTS::add_transition(Process from, Event event, Process to)
 {
     graph_[from][event].insert(to);
 }

@@ -25,6 +25,7 @@ class Event::Table {
 };
 
 std::unique_ptr<Event::Table> Event::table_;
+Event Event::tau("τ");
 
 Event::Index
 Event::find_or_create_event(const string& name)
@@ -53,9 +54,24 @@ const string& Event::name() const
     return *table_->names[index_];
 }
 
-std::ostream& operator<<(std::ostream& out, const Event& event)
+std::ostream& operator<<(std::ostream& out, Event event)
 {
     return out << event.name();
+}
+
+std::ostream& operator<<(std::ostream& out, const Alphabet& events)
+{
+    out << "{";
+    bool first = true;
+    for (Event event : events) {
+        if (first) {
+            first = false;
+            out << event;
+        } else {
+            out << "," << event;
+        }
+    }
+    return out << "}";
 }
 
 }  // namespace hst
