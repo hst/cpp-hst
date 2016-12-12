@@ -26,6 +26,8 @@ class Event {
     static Event none() { return Event(Index(0)); }
     const std::string& name() const;
 
+    static Event tau;
+
     bool operator==(const Event& other) const { return index_ == other.index_; }
     bool operator!=(const Event& other) const { return index_ != other.index_; }
     bool operator<(const Event& other) const { return index_ < other.index_; }
@@ -45,7 +47,10 @@ class Event {
     Index index_;
 };
 
-std::ostream& operator<<(std::ostream& out, const Event& event);
+using Alphabet = std::set<Event>;
+
+std::ostream& operator<<(std::ostream& out, Event event);
+std::ostream& operator<<(std::ostream& out, const Alphabet& events);
 
 //------------------------------------------------------------------------------
 // Labeled transition systems (LTS)
@@ -79,11 +84,15 @@ class LTS {
     using TransitionsMap = std::map<Event, ProcessSet>;
     using Graph = std::map<Process, TransitionsMap>;
 
+    LTS();
+
     Process add_process();
-    void add_edge(Process from, Event event, Process to);
+    void add_transition(Process from, Event event, Process to);
 
     const TransitionsMap& transitions(Process process) const;
     const ProcessSet& afters(Process process, Event initial) const;
+
+    Process stop;
 
   private:
     Process::ID next_process_id_ = 0;
@@ -94,6 +103,18 @@ class LTS {
 
 std::ostream&
 operator<<(std::ostream& out, const LTS::TransitionsMap& transitions);
+
+//------------------------------------------------------------------------------
+// Operators
+
+Process
+prefix(LTS* lts, Event a, Process b);
+
+Process
+external_choice(LTS* lts, Process lhs, Process rhs);
+
+Process
+external_choice(LTS* lts, const ProcessSet& processes);
 
 }  // namespace hst
 #endif  // HST_H

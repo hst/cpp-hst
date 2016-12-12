@@ -19,7 +19,7 @@ using hst::Process;
 using hst::ProcessSet;
 
 static std::pair<Event, ProcessSet>
-edge(Event event, std::initializer_list<Process> processes)
+t(Event event, std::initializer_list<Process> processes)
 {
     return std::make_pair(event, ProcessSet(processes));
 }
@@ -41,13 +41,13 @@ TEST_CASE("can add nodes to an LTS")
     check_ne(p1, p3);
 }
 
-TEST_CASE("can add edges to an LTS")
+TEST_CASE("can add transitions to an LTS")
 {
     LTS lts;
     Process stop = lts.add_process();
     Process p1 = lts.add_process();
-    lts.add_edge(p1, "a", stop);
+    lts.add_transition(p1, "a", stop);
     check_eq(lts.transitions(stop), LTS::TransitionsMap{});
-    check_eq(lts.transitions(p1), LTS::TransitionsMap{edge("a", {stop})});
+    check_eq(lts.transitions(p1), LTS::TransitionsMap{t("a", {stop})});
     check_eq(lts.afters(p1, "a"), ProcessSet{stop});
 }

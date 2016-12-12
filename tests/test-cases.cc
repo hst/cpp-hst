@@ -44,8 +44,8 @@ SingleResultTestCase::run(unsigned int index)
     if (succeeded_) {
         std::cout << "ok " << index << " - " << description_ << std::endl;
     } else {
-        std::cout << "not ok " << index << " - " << description_ << std::endl
-                  << "# " << failure_reason_.str() << std::endl;
+        std::cout << "not ok " << index << " - " << description_
+                  << failure_reason_.str() << std::endl;
     }
 }
 
@@ -53,6 +53,7 @@ std::ostream&
 SingleResultTestCase::mark_failed()
 {
     succeeded_ = false;
+    failure_reason_ << std::endl << "# ";
     return failure_reason_;
 }
 
