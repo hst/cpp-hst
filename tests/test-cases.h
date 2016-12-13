@@ -149,9 +149,9 @@ fail();
 
 // Verify that two values or objects are equal, failing the current test case if
 // not.
-template <typename T>
+template <typename T, typename E>
 void
-check_eq(const T& actual, const T& expected)
+check_eq(const T& actual, const E& expected)
 {
     if (actual != expected) {
         fail() << "Expected " << expected << ", got " << actual;
@@ -160,9 +160,9 @@ check_eq(const T& actual, const T& expected)
 
 // Verify that two values or objects are NOT equal, failing the current test
 // case if not.
-template <typename T>
+template <typename T, typename E>
 void
-check_ne(const T& actual, const T& expected)
+check_ne(const T& actual, const E& expected)
 {
     if (actual == expected) {
         fail() << "Didn't expect " << expected;

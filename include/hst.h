@@ -8,6 +8,7 @@
 #ifndef HST_H
 #define HST_H
 
+#include <cassert>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -15,6 +16,88 @@
 #include <string>
 
 namespace hst {
+
+//------------------------------------------------------------------------------
+// Results
+
+// Holds either an instance of T or an instance of E.  You'll use this as the
+// return value from a function that can return a value on success, or some kind
+// of error condition on failure.  T should be the type of the successful return
+// value; E should be the type of your error description.
+//
+// This is inspired by Rust's Result<T,E> and Haskell's Either monad.
+template <typename T, typename E>
+class Result {
+  public:
+    Result(const T& success) : valid_(true), value_(std::move(success)) {}
+    Result(T&& success) : valid_(true), value_(std::move(success)) {}
+
+    Result(const E& error) : valid_(false), error_(std::move(error)) {}
+    Result(E&& error) : valid_(false), error_(std::move(error)) {}
+
+    Result(const Result& other) : valid_(other.valid_)
+    {
+        if (valid_) {
+            new (&value_) T(other.value_);
+        } else {
+            new (&error_) E(other.error_);
+        }
+    }
+
+    Result(Result&& other) : valid_(other.valid_)
+    {
+        if (valid_) {
+            new (&value_) T(std::move(other.value_));
+        } else {
+            new (&error_) E(std::move(other.error_));
+        }
+    }
+
+    ~Result()
+    {
+        if (valid_) {
+            value_.~T();
+        } else {
+            error_.~E();
+        }
+    }
+
+    bool valid() const { return valid_; }
+    operator bool() const { return valid_; }
+
+    T& get()
+    {
+        assert(valid_);
+        return value_;
+    }
+
+    const T& get() const
+    {
+        assert(valid_);
+        return value_;
+    }
+
+    E& get_error()
+    {
+        assert(!valid_);
+        return error_;
+    }
+
+    const E& get_error() const
+    {
+        assert(!valid_);
+        return error_;
+    }
+
+  private:
+    bool valid_;
+    union {
+        T value_;
+        E error_;
+    };
+
+    Result() = default;
+};
 
 //------------------------------------------------------------------------------
 // Events

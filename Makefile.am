@@ -29,6 +29,7 @@ hst_LDADD = libhst.la
 # are checked before larger features that build on them.
 check_PROGRAMS = \
 	tests/test-harness \
+	tests/test-results \
 	tests/test-events \
 	tests/test-lts \
 	tests/test-operators
@@ -44,5 +45,6 @@ tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
 tests_test_lts_LDFLAGS = -no-install
 tests_test_operators_LDFLAGS = -no-install
+tests_test_results_LDFLAGS = -no-install
 
 dist_doc_DATA = README.md
