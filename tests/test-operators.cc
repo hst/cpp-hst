@@ -6,6 +6,7 @@
  */
 
 #include <initializer_list>
+#include <sstream>
 #include <string>
 
 #include "test-cases.h"
@@ -61,6 +62,15 @@ events_from_names(std::initializer_list<const std::string> names)
 }
 
 void
+check_name(const std::string& csp0, const std::string& expected)
+{
+    std::shared_ptr<Process> process = require_csp0(csp0);
+    std::stringstream actual;
+    actual << *process;
+    check_eq(actual.str(), expected);
+}
+
+void
 check_initials(const std::string& csp0,
                std::initializer_list<const std::string> expected)
 {
@@ -107,6 +117,7 @@ TEST_CASE_GROUP("prefix");
 TEST_CASE("a → STOP")
 {
     auto p = "a → STOP";
+    check_name(p, "a → STOP");
     check_initials(p, {"a"});
     check_afters(p, "a", {"STOP"});
     check_afters(p, "τ", {});
@@ -115,6 +126,7 @@ TEST_CASE("a → STOP")
 TEST_CASE("a → b → STOP")
 {
     auto p = "a → b → STOP";
+    check_name(p, "a → b → STOP");
     check_initials(p, {"a"});
     check_afters(p, "a", {"b → STOP"});
     check_afters(p, "τ", {});
@@ -125,6 +137,7 @@ TEST_CASE_GROUP("STOP");
 TEST_CASE("STOP")
 {
     auto stop = "STOP";
+    check_name(stop, "STOP");
     check_initials(stop, {});
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
