@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <ostream>
+#include <set>
 #include <string>
 
 namespace hst {
@@ -19,6 +20,8 @@ namespace hst {
 
 class Event {
   public:
+    using Set = std::set<Event>;
+
     explicit Event(const std::string& name) : index_(find_or_create_event(name))
     {
     }
@@ -28,6 +31,10 @@ class Event {
 
     bool operator==(const Event& other) const { return index_ == other.index_; }
     bool operator!=(const Event& other) const { return index_ != other.index_; }
+    bool operator<(const Event& other) const { return index_ < other.index_; }
+    bool operator<=(const Event& other) const { return index_ <= other.index_; }
+    bool operator>(const Event& other) const { return index_ > other.index_; }
+    bool operator>=(const Event& other) const { return index_ >= other.index_; }
 
   private:
     using Index = unsigned int;
@@ -42,6 +49,7 @@ class Event {
 };
 
 std::ostream& operator<<(std::ostream& out, const Event& event);
+std::ostream& operator<<(std::ostream& out, const Event::Set& events);
 
 }  // namespace hst
 #endif  // HST_EVENT_H
