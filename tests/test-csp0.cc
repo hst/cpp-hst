@@ -15,6 +15,7 @@
 #include "hst/event.h"
 #include "hst/prefix.h"
 #include "hst/process.h"
+#include "hst/sequential-composition.h"
 #include "hst/stop.h"
 
 // Don't check the semantics of any of the operators here; this file just checks
@@ -26,6 +27,8 @@ using hst::Event;
 using hst::ParseError;
 using hst::Prefix;
 using hst::Process;
+using hst::SequentialComposition;
+using hst::Skip;
 using hst::Stop;
 
 static void
@@ -97,6 +100,15 @@ TEST_CASE("parse: STOP")
     check_csp0_eq(" STOP ", expected);
 }
 
+TEST_CASE("parse: SKIP")
+{
+    auto expected = Skip::create();
+    check_csp0_eq("SKIP", expected);
+    check_csp0_eq(" SKIP", expected);
+    check_csp0_eq("SKIP ", expected);
+    check_csp0_eq(" SKIP ", expected);
+}
+
 TEST_CASE_GROUP("CSP₀ operators");
 
 TEST_CASE("parse: (STOP)")
@@ -139,4 +151,35 @@ TEST_CASE("associativity: a → b → STOP")
                                    Prefix::create(Event("b"), Stop::create()));
     check_csp0_eq("a -> b -> STOP", expected);
     check_csp0_eq("a → b → STOP", expected);
+}
+
+TEST_CASE("parse: a → SKIP ; STOP")
+{
+    auto expected = SequentialComposition::create(
+            Prefix::create(Event("a"), Skip::create()), Stop::create());
+    check_csp0_eq("a→SKIP;STOP", expected);
+    check_csp0_eq(" a→SKIP;STOP", expected);
+    check_csp0_eq(" a →SKIP;STOP", expected);
+    check_csp0_eq(" a → SKIP;STOP", expected);
+    check_csp0_eq(" a → SKIP ;STOP", expected);
+    check_csp0_eq(" a → SKIP ; STOP", expected);
+    check_csp0_eq(" a → SKIP ; STOP ", expected);
+    // Fail to parse a bunch of invalid statements.
+    // a is undefined
+    check_csp0_invalid("a ; STOP");
+    check_csp0_invalid("STOP ; a");
+    // Missing process after ;
+    check_csp0_invalid("SKIP;");
+    check_csp0_invalid("SKIP ;");
+    check_csp0_invalid("SKIP ; ");
+}
+
+TEST_CASE("associativity: a → SKIP ; b → SKIP ; c → SKIP")
+{
+    auto expected = SequentialComposition::create(
+            Prefix::create(Event("a"), Skip::create()),
+            SequentialComposition::create(
+                    Prefix::create(Event("b"), Skip::create()),
+                    Prefix::create(Event("c"), Skip::create())));
+    check_csp0_eq("a → SKIP ; b → SKIP ; c → SKIP", expected);
 }

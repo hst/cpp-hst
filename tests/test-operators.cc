@@ -132,6 +132,18 @@ TEST_CASE("a → b → STOP")
     check_afters(p, "τ", {});
 }
 
+TEST_CASE_GROUP("SKIP");
+
+TEST_CASE("SKIP")
+{
+    auto skip = "SKIP";
+    check_name(skip, "SKIP");
+    check_initials(skip, {"✔"});
+    check_afters(skip, "a", {});
+    check_afters(skip, "τ", {});
+    check_afters(skip, "✔", {"STOP"});
+}
+
 TEST_CASE_GROUP("STOP");
 
 TEST_CASE("STOP")
@@ -141,4 +153,28 @@ TEST_CASE("STOP")
     check_initials(stop, {});
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
+}
+
+TEST_CASE_GROUP("sequential composition");
+
+TEST_CASE("SKIP ; STOP")
+{
+    auto p = "SKIP ; STOP";
+    check_name(p, "SKIP ; STOP");
+    check_initials(p, {"τ"});
+    check_afters(p, "a", {});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {"STOP"});
+    check_afters(p, "✔", {});
+}
+
+TEST_CASE("a → SKIP ; STOP")
+{
+    auto p = "a → SKIP ; STOP";
+    check_name(p, "a → SKIP ; STOP");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"SKIP ; STOP"});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {});
+    check_afters(p, "✔", {});
 }
