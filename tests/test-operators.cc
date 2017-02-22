@@ -112,6 +112,47 @@ TEST_CASE("can compare sets of processes")
     check_eq(set1, set2);
 }
 
+TEST_CASE_GROUP("external choice");
+
+TEST_CASE("STOP □ STOP")
+{
+    auto p = "STOP □ STOP";
+    check_name(p, "□ {STOP}");
+    check_initials(p, {});
+    check_afters(p, "a", {});
+}
+
+TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
+{
+    auto p = "(a → STOP) □ (b → STOP ⊓ c → STOP)";
+    check_name(p, "a → STOP □ (b → STOP ⊓ c → STOP)");
+    check_initials(p, {"a", "τ"});
+    check_afters(p, "a", {"STOP"});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {"a → STOP □ b → STOP", "a → STOP □ c → STOP"});
+}
+
+TEST_CASE("(a → STOP) □ (b → STOP)")
+{
+    auto p = "(a → STOP) □ (b → STOP)";
+    check_name(p, "a → STOP □ b → STOP");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"STOP"});
+    check_afters(p, "b", {"STOP"});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
+{
+    auto p = "□ {a → STOP, b → STOP, c → STOP}";
+    check_name(p, "□ {a → STOP, b → STOP, c → STOP}");
+    check_initials(p, {"a", "b", "c"});
+    check_afters(p, "a", {"STOP"});
+    check_afters(p, "b", {"STOP"});
+    check_afters(p, "c", {"STOP"});
+    check_afters(p, "τ", {});
+}
+
 TEST_CASE_GROUP("internal choice");
 
 TEST_CASE("STOP ⊓ STOP")
@@ -205,6 +246,17 @@ TEST_CASE("a → SKIP ; STOP")
     check_afters(p, "a", {"SKIP ; STOP"});
     check_afters(p, "b", {});
     check_afters(p, "τ", {});
+    check_afters(p, "✔", {});
+}
+
+TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
+{
+    auto p = "(a → b → STOP □ SKIP) ; STOP";
+    check_name(p, "(SKIP □ a → b → STOP) ; STOP");
+    check_initials(p, {"a", "τ"});
+    check_afters(p, "a", {"b → STOP ; STOP"});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {"STOP"});
     check_afters(p, "✔", {});
 }
 

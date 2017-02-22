@@ -12,6 +12,7 @@
 #include <string>
 
 #include "hst/event.h"
+#include "hst/external-choice.h"
 #include "hst/internal-choice.h"
 #include "hst/prefix.h"
 #include "hst/process.h"
@@ -425,7 +426,31 @@ parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
     return true;
 }
 
-#define parse_process6 parse_process3  // NIY
+#define parse_process5 parse_process3  // NIY
+
+static bool
+parse_process6(ParseState* parent, std::shared_ptr<Process>* out)
+{
+    std::shared_ptr<Process> lhs;
+    // process6 = process5 (⊓ process6)?
+    return_if_error(parse_process5(parent, &lhs));
+
+    ParseState state = parent->attempt("process6");
+    skip_whitespace(&state);
+    if (!require_token(&state, "[]") && !require_token(&state, "□")) {
+        *out = std::move(lhs);
+        return true;
+    }
+    skip_whitespace(&state);
+    std::shared_ptr<Process> rhs;
+    if (!parse_process6(&state, &rhs) != 0) {
+        // Expected process after ⊓
+        return state.parse_error("Expected process after □");
+    }
+
+    *out = ExternalChoice::create(Process::Set{std::move(lhs), std::move(rhs)});
+    return true;
+}
 
 static bool
 parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
@@ -458,6 +483,15 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
 {
     // process11 = process10 | □ {process} | ⊓ {process}
     ParseState state = parent->attempt("process11");
+
+    // □ {process}
+    if (require_token(&state, "[]") || require_token(&state, "□")) {
+        skip_whitespace(&state);
+        Process::Set processes;
+        return_if_error(parse_process_set(&state, &processes));
+        *out = ExternalChoice::create(std::move(processes));
+        return true;
+    }
 
     // ⊓ {process}
     if (require_token(&state, "|~|") || require_token(&state, "⊓")) {

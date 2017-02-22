@@ -74,7 +74,7 @@ InternalChoice::operator==(const Process& other_) const
 void
 InternalChoice::print(std::ostream& out) const
 {
-    print_set(out, ps_, "⊓");
+    print_subprocess_set(out, ps_, "⊓");
 }
 
 }  // namespace hst
