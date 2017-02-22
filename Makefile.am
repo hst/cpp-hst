@@ -24,6 +24,8 @@ libhst_la_SOURCES = \
 	src/hst/prefix.cc \
 	src/hst/process.h \
 	src/hst/process.cc \
+	src/hst/sequential-composition.h \
+	src/hst/sequential-composition.cc \
 	src/hst/stop.h \
 	src/hst/stop.cc
 

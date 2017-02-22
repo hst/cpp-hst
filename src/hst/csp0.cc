@@ -14,6 +14,7 @@
 #include "hst/event.h"
 #include "hst/prefix.h"
 #include "hst/process.h"
+#include "hst/sequential-composition.h"
 #include "hst/stop.h"
 
 //------------------------------------------------------------------------------
@@ -335,12 +336,21 @@ parse_stop(ParseState* state, std::shared_ptr<Process>* out)
 }
 
 static bool
+parse_skip(ParseState* state, std::shared_ptr<Process>* out)
+{
+    return_if_error(require_token(state, "SKIP"));
+    *out = Skip::create();
+    return true;
+}
+
+static bool
 parse_process1(ParseState* parent, std::shared_ptr<Process>* out)
 {
     // process1 = (process) | STOP | SKIP
     ParseState state = parent->attempt("process1");
     return_if_success(parse_parenthesized(&state, out));
     return_if_success(parse_stop(&state, out));
+    return_if_success(parse_skip(&state, out));
     return state.parse_error("Expected (, STOP, or SKIP");
 }
 
@@ -369,9 +379,31 @@ parse_process2(ParseState* parent, std::shared_ptr<Process>* out)
 }
 
 static bool
+parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
+{
+    // process3 = process2 (; process3)?
+
+    std::shared_ptr<Process> lhs;
+    return_if_error(parse_process2(parent, &lhs));
+
+    ParseState state = parent->attempt("process3");
+    skip_whitespace(&state);
+    if (!require_token(&state, ";")) {
+        *out = std::move(lhs);
+        return true;
+    }
+
+    skip_whitespace(&state);
+    std::shared_ptr<Process> rhs;
+    return_if_error(parse_process3(&state, &rhs));
+    *out = SequentialComposition::create(std::move(lhs), std::move(rhs));
+    return true;
+}
+
+static bool
 parse_process(ParseState* state, std::shared_ptr<Process>* out)
 {
-    return parse_process2(state, out);
+    return parse_process3(state, out);
 }
 
 std::shared_ptr<Process>

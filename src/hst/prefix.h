@@ -29,7 +29,7 @@ class Prefix : public Process {
     void print(std::ostream& out) const override;
 
   protected:
-    Prefix(Event a, std::shared_ptr<Process> p) : a_(a), p_(p) {}
+    Prefix(Event a, std::shared_ptr<Process> p) : a_(a), p_(std::move(p)) {}
 
   private:
     Event a_;

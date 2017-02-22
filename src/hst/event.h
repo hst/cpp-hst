@@ -36,6 +36,18 @@ class Event {
     bool operator>(const Event& other) const { return index_ > other.index_; }
     bool operator>=(const Event& other) const { return index_ >= other.index_; }
 
+    static Event tau()
+    {
+        static Event tau("τ");
+        return tau;
+    }
+
+    static Event tick()
+    {
+        static Event tick("✔");
+        return tick;
+    }
+
   private:
     using Index = unsigned int;
     class Table;
