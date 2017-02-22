@@ -59,6 +59,9 @@ class SingleResultTestCase : public TestStep {
     // with the reason for the failure.
     std::ostream& mark_failed();
 
+    // Aborts the current test case.
+    void abort();
+
     // The currently running test case.
     static SingleResultTestCase& current_test_case()
     {
@@ -81,6 +84,10 @@ class SingleResultTestCase : public TestStep {
     const std::string description_;
     bool succeeded_;
     std::stringstream failure_reason_;
+
+  private:
+    class test_case_aborted : public std::exception {
+    };
 };
 
 // A test step that prints out a comment without running any actual tests.  This
@@ -140,6 +147,17 @@ class TestCaseGroup : public TestStep {
 #define HERE  __FILE__, __LINE__
 
 //------------------------------------------------------------------------------
+// Aborting the test
+
+// If you want to abort your test after a failed test, pipe this into fail()
+// right after your error message.
+class abort_test {
+};
+
+std::ostream&
+operator<<(std::ostream& out, const abort_test& abort);
+
+//------------------------------------------------------------------------------
 // Common checks
 
 // Mark the current test case as failing.
@@ -153,7 +171,7 @@ void
 check_eq(const T& actual, const T& expected)
 {
     if (actual != expected) {
-        fail() << "Expected " << expected << ", got " << actual;
+        fail() << "Expected " << expected << ", got " << actual << abort_test();
     }
 }
 
@@ -164,7 +182,7 @@ void
 check_ne(const T& actual, const T& expected)
 {
     if (actual == expected) {
-        fail() << "Didn't expect " << expected;
+        fail() << "Didn't expect " << expected << abort_test();
     }
 }
 

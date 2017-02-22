@@ -34,6 +34,12 @@ void TestRegistry::run_all()
 SingleResultTestCase* SingleResultTestCase::current_test_case_ = nullptr;
 
 void
+SingleResultTestCase::abort()
+{
+    throw test_case_aborted();
+}
+
+void
 SingleResultTestCase::run(unsigned int index)
 {
     // Assume the test case passes unless we're told otherwise.
@@ -41,7 +47,11 @@ SingleResultTestCase::run(unsigned int index)
 
     // Run the test.
     current_test_case_ = this;
-    body();
+    try{
+        body();
+    } catch (const test_case_aborted& e) {
+        succeeded_ = false;
+    }
     current_test_case_ = nullptr;
 
     // Report the result.
@@ -66,4 +76,11 @@ std::ostream&
 fail()
 {
     return tests::SingleResultTestCase::current_test_case().mark_failed();
+}
+
+std::ostream&
+operator<<(std::ostream& out, const abort_test& abort)
+{
+    tests::SingleResultTestCase::current_test_case().abort();
+    return out;
 }
