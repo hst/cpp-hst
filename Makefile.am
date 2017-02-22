@@ -20,6 +20,8 @@ libhst_la_SOURCES = \
 	src/hst/event.h \
 	src/hst/event.cc \
 	src/hst/hash.h \
+	src/hst/internal-choice.h \
+	src/hst/internal-choice.cc \
 	src/hst/prefix.h \
 	src/hst/prefix.cc \
 	src/hst/process.h \

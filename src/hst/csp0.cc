@@ -12,6 +12,7 @@
 #include <string>
 
 #include "hst/event.h"
+#include "hst/internal-choice.h"
 #include "hst/prefix.h"
 #include "hst/process.h"
 #include "hst/sequential-composition.h"
@@ -299,6 +300,30 @@ require_token(ParseState* parent, const std::string& expected_str)
 static bool
 parse_process(ParseState* state, std::shared_ptr<Process>* out);
 
+static bool
+parse_process_set(ParseState* parent, Process::Set* out)
+{
+    ParseState state = parent->attempt("process set");
+    std::shared_ptr<Process> process;
+
+    return_if_error(require_token(&state, "{"));
+    skip_whitespace(&state);
+    if (parse_process(&state, &process)) {
+        out->insert(std::move(process));
+        skip_whitespace(&state);
+        while (require_token(&state, ",")) {
+            skip_whitespace(&state);
+            if (unlikely(!parse_process(&state, &process))) {
+                return state.parse_error("Expected process after `,`");
+            }
+            out->insert(std::move(process));
+            skip_whitespace(&state);
+        }
+    }
+    return_if_error(require_token(&state, "}"));
+    return true;
+}
+
 // Precedence order (tightest first)
 //  1. () STOP SKIP
 //  2. → identifier
@@ -400,10 +425,57 @@ parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
     return true;
 }
 
+#define parse_process6 parse_process3  // NIY
+
+static bool
+parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
+{
+    std::shared_ptr<Process> lhs;
+    // process7 = process6 (⊓ process7)?
+    return_if_error(parse_process6(parent, &lhs));
+
+    ParseState state = parent->attempt("process7");
+    skip_whitespace(&state);
+    if (!require_token(&state, "|~|") && !require_token(&state, "⊓")) {
+        *out = std::move(lhs);
+        return true;
+    }
+    skip_whitespace(&state);
+    std::shared_ptr<Process> rhs;
+    if (!parse_process7(&state, &rhs) != 0) {
+        // Expected process after ⊓
+        return state.parse_error("Expected process after ⊓");
+    }
+
+    *out = InternalChoice::create(Process::Set{std::move(lhs), std::move(rhs)});
+    return true;
+}
+
+#define parse_process10 parse_process7  // NIY
+
+static bool
+parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
+{
+    // process11 = process10 | □ {process} | ⊓ {process}
+    ParseState state = parent->attempt("process11");
+
+    // ⊓ {process}
+    if (require_token(&state, "|~|") || require_token(&state, "⊓")) {
+        skip_whitespace(&state);
+        Process::Set processes;
+        return_if_error(parse_process_set(&state, &processes));
+        *out = InternalChoice::create(std::move(processes));
+        return true;
+    }
+
+    // process10
+    return parse_process10(&state, out);
+}
+
 static bool
 parse_process(ParseState* state, std::shared_ptr<Process>* out)
 {
-    return parse_process3(state, out);
+    return parse_process11(state, out);
 }
 
 std::shared_ptr<Process>

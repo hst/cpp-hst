@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <ostream>
+#include <string>
 #include <unordered_set>
 
 #include "hst/event.h"
@@ -76,10 +77,17 @@ operator<<(std::ostream& out, const Process& process)
     return out;
 }
 
+void
+print_set(std::ostream& out, const Process::Set& processes,
+          const std::string& binary_op = std::string());
+
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 
 bool
 operator==(const Process::Set& lhs, const Process::Set& rhs);
+
+std::size_t
+hash(const Process::Set& set);
 
 }  // namespace hst
 
@@ -91,6 +99,15 @@ struct hash<hst::Process>
     std::size_t operator()(const hst::Process& process) const
     {
         return process.hash();
+    }
+};
+
+template <>
+struct hash<hst::Process::Set>
+{
+    std::size_t operator()(const hst::Process::Set& set) const
+    {
+        return hst::hash(set);
     }
 };
 

@@ -13,6 +13,7 @@
 #include "test-harness.cc.in"
 
 #include "hst/event.h"
+#include "hst/internal-choice.h"
 #include "hst/prefix.h"
 #include "hst/process.h"
 #include "hst/sequential-composition.h"
@@ -24,6 +25,7 @@
 // each operator behaves as we expect it to.
 
 using hst::Event;
+using hst::InternalChoice;
 using hst::ParseError;
 using hst::Prefix;
 using hst::Process;
@@ -110,6 +112,40 @@ TEST_CASE("parse: SKIP")
 }
 
 TEST_CASE_GROUP("CSP₀ operators");
+
+TEST_CASE("parse: a → STOP ⊓ SKIP")
+{
+    auto expected = InternalChoice::create(
+            Prefix::create(Event("a"), Stop::create()), Skip::create());
+    check_csp0_eq("a->STOP|~|SKIP", expected);
+    check_csp0_eq(" a->STOP|~|SKIP", expected);
+    check_csp0_eq(" a ->STOP|~|SKIP", expected);
+    check_csp0_eq(" a -> STOP|~|SKIP", expected);
+    check_csp0_eq(" a -> STOP |~|SKIP", expected);
+    check_csp0_eq(" a -> STOP |~| SKIP", expected);
+    check_csp0_eq(" a -> STOP |~| SKIP ", expected);
+    check_csp0_eq("a→STOP⊓SKIP", expected);
+    check_csp0_eq(" a→STOP⊓SKIP", expected);
+    check_csp0_eq(" a →STOP⊓SKIP", expected);
+    check_csp0_eq(" a → STOP⊓SKIP", expected);
+    check_csp0_eq(" a → STOP ⊓SKIP", expected);
+    check_csp0_eq(" a → STOP ⊓ SKIP", expected);
+    check_csp0_eq(" a → STOP ⊓ SKIP ", expected);
+    // Fail to parse a bunch of invalid statements.
+    // a is undefined
+    check_csp0_invalid("a ⊓ STOP");
+    check_csp0_invalid("STOP ⊓ a");
+}
+
+TEST_CASE("associativity: a → STOP ⊓ b → STOP ⊓ c → STOP")
+{
+    auto expected = InternalChoice::create(
+            Prefix::create(Event("a"), Stop::create()),
+            InternalChoice::create(Prefix::create(Event("b"), Stop::create()),
+                                   Prefix::create(Event("c"), Stop::create())));
+    check_csp0_eq("a -> STOP |~| b -> STOP |~| c -> STOP", expected);
+    check_csp0_eq("a → STOP ⊓ b → STOP ⊓ c → STOP", expected);
+}
 
 TEST_CASE("parse: (STOP)")
 {

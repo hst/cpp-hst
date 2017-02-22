@@ -32,6 +32,13 @@ class hasher {
         return *this;
     }
 
+    template <typename T>
+    hasher& add_unordered(const T& value)
+    {
+        hash_ ^= std::hash<T>()(value);
+        return *this;
+    }
+
     std::size_t value() const { return hash_; }
 
   private:
