@@ -54,6 +54,26 @@ check_afters(const std::shared_ptr<Process>& process,
 
 }  // namespace
 
+TEST_CASE_GROUP("process comparisons");
+
+TEST_CASE("can compare individual processes")
+{
+    auto p1 = Prefix::create(Event("a"), Stop::create());
+    auto p2 = Prefix::create(Event("a"), Stop::create());
+    check_eq(*p1, *p1);
+    check_eq(*p1, *p2);
+}
+
+TEST_CASE("can compare sets of processes")
+{
+    auto p1 = Prefix::create(Event("a"), Stop::create());
+    auto p2 = Prefix::create(Event("a"), Stop::create());
+    Process::Set set1{p1};
+    Process::Set set2{p2};
+    check_eq(set1, set1);
+    check_eq(set1, set2);
+}
+
 TEST_CASE_GROUP("prefix");
 
 TEST_CASE("a → STOP")

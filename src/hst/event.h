@@ -52,4 +52,18 @@ std::ostream& operator<<(std::ostream& out, const Event& event);
 std::ostream& operator<<(std::ostream& out, const Event::Set& events);
 
 }  // namespace hst
+
+namespace std {
+
+template <>
+struct hash<hst::Event>
+{
+    std::size_t operator()(const hst::Event& event) const
+    {
+        return std::hash<string>()(event.name());
+    }
+};
+
+}  // namespace std
+
 #endif  // HST_EVENT_H
