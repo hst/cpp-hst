@@ -11,17 +11,44 @@
 #include "test-cases.h"
 #include "test-harness.cc.in"
 
+#include "hst/csp0.h"
 #include "hst/event.h"
-#include "hst/prefix.h"
 #include "hst/process.h"
-#include "hst/stop.h"
 
 using hst::Event;
-using hst::Prefix;
+using hst::ParseError;
 using hst::Process;
-using hst::Stop;
+
+// The test cases in this file verify that we've implemented each of the CSP
+// operators correctly: specifically, that they have the right "initials" and
+// "afters" sets, as defined by CSP's operational semantics.
+//
+// We've provided some helper functions that make these test cases easier to
+// write.  In particular, you can assume that the CSP₀ parser works as expected;
+// that will have been checked in test-csp0.c.
 
 namespace {
+
+std::shared_ptr<Process>
+require_csp0(const std::string& csp0)
+{
+    ParseError error;
+    std::shared_ptr<Process> parsed = hst::load_csp0_string(csp0, &error);
+    if (!parsed) {
+        fail() << "Could not parse " << csp0 << ": " << error << abort_test();
+    }
+    return parsed;
+}
+
+Process::Set
+require_csp0_set(std::initializer_list<const std::string> csp0s)
+{
+    Process::Set set;
+    for (const auto& csp0 : csp0s) {
+        set.insert(require_csp0(csp0));
+    }
+    return set;
+}
 
 Event::Set
 events_from_names(std::initializer_list<const std::string> names)
@@ -34,22 +61,23 @@ events_from_names(std::initializer_list<const std::string> names)
 }
 
 void
-check_initials(const std::shared_ptr<Process>& process,
+check_initials(const std::string& csp0,
                std::initializer_list<const std::string> expected)
 {
+    std::shared_ptr<Process> process = require_csp0(csp0);
     Event::Set actual;
     process->initials(&actual);
     check_eq(actual, events_from_names(expected));
 }
 
 void
-check_afters(const std::shared_ptr<Process>& process,
-             const std::string& initial,
-             std::initializer_list<std::shared_ptr<Process>> expected)
+check_afters(const std::string& csp0, const std::string& initial,
+             std::initializer_list<const std::string> expected)
 {
+    std::shared_ptr<Process> process = require_csp0(csp0);
     Process::Set actual;
     process->afters(Event(initial), &actual);
-    check_eq(actual, Process::Set(expected));
+    check_eq(actual, require_csp0_set(expected));
 }
 
 }  // namespace
@@ -58,16 +86,16 @@ TEST_CASE_GROUP("process comparisons");
 
 TEST_CASE("can compare individual processes")
 {
-    auto p1 = Prefix::create(Event("a"), Stop::create());
-    auto p2 = Prefix::create(Event("a"), Stop::create());
+    auto p1 = require_csp0("a → STOP");
+    auto p2 = require_csp0("a → STOP");
     check_eq(*p1, *p1);
     check_eq(*p1, *p2);
 }
 
 TEST_CASE("can compare sets of processes")
 {
-    auto p1 = Prefix::create(Event("a"), Stop::create());
-    auto p2 = Prefix::create(Event("a"), Stop::create());
+    auto p1 = require_csp0("a → STOP");
+    auto p2 = require_csp0("a → STOP");
     Process::Set set1{p1};
     Process::Set set2{p2};
     check_eq(set1, set1);
@@ -78,9 +106,17 @@ TEST_CASE_GROUP("prefix");
 
 TEST_CASE("a → STOP")
 {
-    auto p = Prefix::create(Event("a"), Stop::create());
+    auto p = "a → STOP";
     check_initials(p, {"a"});
-    check_afters(p, "a", {Stop::create()});
+    check_afters(p, "a", {"STOP"});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("a → b → STOP")
+{
+    auto p = "a → b → STOP";
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"b → STOP"});
     check_afters(p, "τ", {});
 }
 
@@ -88,7 +124,7 @@ TEST_CASE_GROUP("STOP");
 
 TEST_CASE("STOP")
 {
-    auto stop = Stop::create();
+    auto stop = "STOP";
     check_initials(stop, {});
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
