@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*-
  * -----------------------------------------------------------------------------
- * Copyright © 2016, HST Project.
+ * Copyright © 2016-2017, HST Project.
  * Please see the COPYING file in this distribution for license details.
  * -----------------------------------------------------------------------------
  */
@@ -33,6 +33,8 @@ class TestStep {
 // A list of all of the steps that will be performed during a test.
 class TestRegistry {
   public:
+    static TestRegistry* get();
+
     // Add `step` to the list of steps that will be performed.
     void register_step(TestStep* step);
 
@@ -43,9 +45,6 @@ class TestRegistry {
     std::vector<TestStep*> steps_;
     unsigned int total_result_count_ = 0;
 };
-
-// Declare a single test registry for the current test case.
-extern TestRegistry test_case_registry;
 
 
 // A test case that produces a single TAP result.
@@ -126,7 +125,7 @@ class TestCaseGroup : public TestStep {
         }                                                               \
         void body() override;                                           \
     };                                                                  \
-    static TestCase##line test_case_##line(&tests::test_case_registry); \
+    static TestCase##line test_case_##line(tests::TestRegistry::get()); \
     void TestCase##line::body()
 
 // A helper macro for defining a group of test cases.  Use it as follows:
@@ -136,7 +135,7 @@ class TestCaseGroup : public TestStep {
 #define TEST_CASE_GROUP_AT(desc, line) TEST_CASE_GROUP_AT_(desc, line)
 #define TEST_CASE_GROUP_AT_(description, line)                \
     static tests::TestCaseGroup test_case_##line(description, \
-                                                 &tests::test_case_registry);
+                                                 tests::TestRegistry::get());
 
 #define HERE  __FILE__, __LINE__
 

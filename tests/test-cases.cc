@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*-
  * -----------------------------------------------------------------------------
- * Copyright © 2016, HST Project.
+ * Copyright © 2016-2017, HST Project.
  * Please see the COPYING file in this distribution for license details.
  * -----------------------------------------------------------------------------
  */
@@ -9,7 +9,11 @@
 
 namespace tests {
 
-TestRegistry test_case_registry;
+TestRegistry* TestRegistry::get()
+{
+    static TestRegistry test_case_registry;
+    return &test_case_registry;
+}
 
 void TestRegistry::register_step(TestStep* step)
 {
