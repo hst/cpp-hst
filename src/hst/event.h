@@ -1,12 +1,12 @@
 /* -*- coding: utf-8 -*-
  * -----------------------------------------------------------------------------
- * Copyright © 2016, HST Project.
+ * Copyright © 2016-2017, HST Project.
  * Please see the COPYING file in this distribution for license details.
  * -----------------------------------------------------------------------------
  */
 
-#ifndef HST_H
-#define HST_H
+#ifndef HST_EVENT_H
+#define HST_EVENT_H
 
 #include <memory>
 #include <ostream>
@@ -44,4 +44,4 @@ class Event {
 std::ostream& operator<<(std::ostream& out, const Event& event);
 
 }  // namespace hst
-#endif  // HST_H
+#endif  // HST_EVENT_H

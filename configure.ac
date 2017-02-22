@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
-# Copyright © 2016, HST Project.
+# Copyright © 2016-2017, HST Project.
 # Please see the COPYING file in this distribution for license details.
 # ------------------------------------------------------------------------------
 
 AC_INIT([hst], [0.0.0], [info@hst-project.net])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR([src/hst/hst.cc])
+AC_CONFIG_SRCDIR([src/hst/hst/hst.cc])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([foreign no-dist-gzip dist-xz subdir-objects])
 AM_MAINTAINER_MODE([enable])  # Allow packagers to disable if they want

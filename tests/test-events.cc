@@ -8,7 +8,7 @@
 #include "test-cases.h"
 #include "test-harness.cc.in"
 
-#include "hst.h"
+#include "hst/event.h"
 
 using hst::Event;
 

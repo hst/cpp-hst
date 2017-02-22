@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
-# Copyright © 2016, HST Project.
+# Copyright © 2016-2017, HST Project.
 # Please see the COPYING file in this distribution for license details.
 # ------------------------------------------------------------------------------
 
 ACLOCAL_AMFLAGS = -I m4
-AM_CPPFLAGS = -I. -I$(top_srcdir)/include
+AM_CPPFLAGS = -I. -I$(top_srcdir)/src
 AM_DEFAULT_SOURCE_EXT = .cc
-include_HEADERS = include/hst.h
-lib_LTLIBRARIES = libhst.la
+noinst_LTLIBRARIES = libhst.la
 bin_PROGRAMS = hst
 EXTRA_DIST = tap-driver.sh
 TESTS = ${check_PROGRAMS}
@@ -16,10 +15,11 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 @VALGRIND_CHECK_RULES@
 
 libhst_la_SOURCES = \
-	src/libhst/event.cc
+	src/hst/event.h \
+	src/hst/event.cc
 
 hst_SOURCES = \
-	src/hst/hst.cc
+	src/hst/hst/hst.cc
 hst_LDADD = libhst.la
 
 # Keep this sorted generally in order of dependency, so that more basic features
