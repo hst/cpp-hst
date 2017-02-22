@@ -30,15 +30,22 @@ Prefix::create(Event a, std::shared_ptr<Process> p)
     return std::make_shared<ConcretePrefix>(a, std::move(p));
 }
 
+// Operational semantics for a → P
+//
+// 1) ─────────────
+//     a → P -a→ P
+
 void
 Prefix::initials(std::set<Event>* out)
 {
+    // initials(a → P) = {a}
     out->insert(a_);
 }
 
 void
 Prefix::afters(Event initial, Process::Set* out)
 {
+    // afters(a → P, a) = P
     if (initial == a_) {
         out->insert(p_);
     }
