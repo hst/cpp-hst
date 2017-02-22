@@ -1,11 +1,11 @@
 /* -*- coding: utf-8 -*-
  * -----------------------------------------------------------------------------
- * Copyright © 2016, HST Project.
+ * Copyright © 2016-2017, HST Project.
  * Please see the COPYING file in this distribution for license details.
  * -----------------------------------------------------------------------------
  */
 
-#include "hst.h"
+#include "hst/event.h"
 
 #include <map>
 #include <ostream>
