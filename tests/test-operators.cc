@@ -12,10 +12,12 @@
 #include "test-harness.cc.in"
 
 #include "hst/event.h"
+#include "hst/prefix.h"
 #include "hst/process.h"
 #include "hst/stop.h"
 
 using hst::Event;
+using hst::Prefix;
 using hst::Process;
 using hst::Stop;
 
@@ -50,6 +52,16 @@ check_afters(Process* process, const std::string& initial,
 }
 
 }  // namespace
+
+TEST_CASE_GROUP("prefix");
+
+TEST_CASE("a → STOP")
+{
+    Prefix p(Event("a"), Stop::get());
+    check_initials(&p, {"a"});
+    check_afters(&p, "a", {Stop::get()});
+    check_afters(&p, "τ", {});
+}
 
 TEST_CASE_GROUP("STOP");
 
