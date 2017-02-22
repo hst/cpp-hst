@@ -19,18 +19,14 @@ libhst_la_SOURCES = \
 	src/hst/csp0.cc \
 	src/hst/event.h \
 	src/hst/event.cc \
-	src/hst/external-choice.h \
 	src/hst/external-choice.cc \
 	src/hst/hash.h \
-	src/hst/internal-choice.h \
 	src/hst/internal-choice.cc \
-	src/hst/prefix.h \
+	src/hst/operators.h \
 	src/hst/prefix.cc \
 	src/hst/process.h \
 	src/hst/process.cc \
-	src/hst/sequential-composition.h \
 	src/hst/sequential-composition.cc \
-	src/hst/stop.h \
 	src/hst/stop.cc
 
 hst_SOURCES = \

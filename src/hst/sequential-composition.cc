@@ -5,24 +5,34 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/sequential-composition.h"
+#include "hst/operators.h"
 
+#include <memory>
 #include <ostream>
-#include <set>
 
 #include "hst/event.h"
 #include "hst/hash.h"
 #include "hst/process.h"
-#include "hst/stop.h"
 
 namespace hst {
 
-class ConcreteSkip : public Skip {};
+class Skip : public Process {
+  public:
+    Skip() = default;
 
-std::shared_ptr<Skip>
-Skip::create()
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 1; }
+    void print(std::ostream& out) const override;
+};
+
+std::shared_ptr<Process>
+skip()
 {
-    static std::shared_ptr<Skip> stop = std::make_shared<ConcreteSkip>();
+    static std::shared_ptr<Process> stop = std::make_shared<Skip>();
     return stop;
 }
 
@@ -36,7 +46,7 @@ void
 Skip::afters(Event initial, Process::Set* out)
 {
     if (initial == Event::tick()) {
-        out->insert(Stop::create());
+        out->insert(stop());
     }
 }
 
@@ -63,21 +73,31 @@ Skip::print(std::ostream& out) const
     out << "SKIP";
 }
 
-class ConcreteSequentialComposition : public SequentialComposition {
+class SequentialComposition : public Process {
   public:
-    ConcreteSequentialComposition(std::shared_ptr<Process> p,
-                                  std::shared_ptr<Process> q)
-        : SequentialComposition(std::move(p), std::move(q))
+    SequentialComposition(std::shared_ptr<Process> p,
+                          std::shared_ptr<Process> q)
+        : p_(std::move(p)), q_(std::move(q))
     {
     }
+
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 3; }
+    void print(std::ostream& out) const override;
+
+  private:
+    std::shared_ptr<Process> p_;
+    std::shared_ptr<Process> q_;
 };
 
-std::shared_ptr<SequentialComposition>
-SequentialComposition::create(std::shared_ptr<Process> p,
-                              std::shared_ptr<Process> q)
+std::shared_ptr<Process>
+sequential_composition(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
 {
-    return std::make_shared<ConcreteSequentialComposition>(std::move(p),
-                                                           std::move(q));
+    return std::make_shared<SequentialComposition>(std::move(p), std::move(q));
 }
 
 // Operational semantics for P ; Q
@@ -126,7 +146,7 @@ SequentialComposition::afters(Event initial, Process::Set* out)
         Process::Set afters;
         p_->afters(initial, &afters);
         for (const auto& p_prime : afters) {
-            out->insert(SequentialComposition::create(p_prime, q_));
+            out->insert(sequential_composition(p_prime, q_));
         }
     }
 

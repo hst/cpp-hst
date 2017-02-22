@@ -12,12 +12,8 @@
 #include <string>
 
 #include "hst/event.h"
-#include "hst/external-choice.h"
-#include "hst/internal-choice.h"
-#include "hst/prefix.h"
+#include "hst/operators.h"
 #include "hst/process.h"
-#include "hst/sequential-composition.h"
-#include "hst/stop.h"
 
 //------------------------------------------------------------------------------
 // Debugging nonsense
@@ -357,7 +353,7 @@ static bool
 parse_stop(ParseState* state, std::shared_ptr<Process>* out)
 {
     return_if_error(require_token(state, "STOP"));
-    *out = Stop::create();
+    *out = stop();
     return true;
 }
 
@@ -365,7 +361,7 @@ static bool
 parse_skip(ParseState* state, std::shared_ptr<Process>* out)
 {
     return_if_error(require_token(state, "SKIP"));
-    *out = Skip::create();
+    *out = skip();
     return true;
 }
 
@@ -397,7 +393,7 @@ parse_process2(ParseState* parent, std::shared_ptr<Process>* out)
         std::shared_ptr<Process> after;
         skip_whitespace(&state);
         return_if_error(parse_process2(&state, &after));
-        *out = Prefix::create(initial, std::move(after));
+        *out = prefix(initial, std::move(after));
         return true;
     }
 
@@ -422,7 +418,7 @@ parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
     skip_whitespace(&state);
     std::shared_ptr<Process> rhs;
     return_if_error(parse_process3(&state, &rhs));
-    *out = SequentialComposition::create(std::move(lhs), std::move(rhs));
+    *out = sequential_composition(std::move(lhs), std::move(rhs));
     return true;
 }
 
@@ -448,7 +444,7 @@ parse_process6(ParseState* parent, std::shared_ptr<Process>* out)
         return state.parse_error("Expected process after □");
     }
 
-    *out = ExternalChoice::create(Process::Set{std::move(lhs), std::move(rhs)});
+    *out = external_choice(Process::Set{std::move(lhs), std::move(rhs)});
     return true;
 }
 
@@ -472,7 +468,7 @@ parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
         return state.parse_error("Expected process after ⊓");
     }
 
-    *out = InternalChoice::create(Process::Set{std::move(lhs), std::move(rhs)});
+    *out = internal_choice(Process::Set{std::move(lhs), std::move(rhs)});
     return true;
 }
 
@@ -489,7 +485,7 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         skip_whitespace(&state);
         Process::Set processes;
         return_if_error(parse_process_set(&state, &processes));
-        *out = ExternalChoice::create(std::move(processes));
+        *out = external_choice(std::move(processes));
         return true;
     }
 
@@ -498,7 +494,7 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         skip_whitespace(&state);
         Process::Set processes;
         return_if_error(parse_process_set(&state, &processes));
-        *out = InternalChoice::create(std::move(processes));
+        *out = internal_choice(std::move(processes));
         return true;
     }
 

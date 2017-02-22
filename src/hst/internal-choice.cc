@@ -5,9 +5,10 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/internal-choice.h"
+#include "hst/operators.h"
 
-#include <string>
+#include <memory>
+#include <ostream>
 
 #include "hst/event.h"
 #include "hst/hash.h"
@@ -15,21 +16,31 @@
 
 namespace hst {
 
-class ConcreteInternalChoice : public InternalChoice {
+class InternalChoice : public Process {
   public:
-    ConcreteInternalChoice(Process::Set ps) : InternalChoice(std::move(ps)) {}
+    explicit InternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 7; }
+    void print(std::ostream& out) const override;
+
+  private:
+    Process::Set ps_;
 };
 
-std::shared_ptr<InternalChoice>
-InternalChoice::create(Process::Set ps)
+std::shared_ptr<Process>
+internal_choice(Process::Set ps)
 {
-    return std::make_shared<ConcreteInternalChoice>(ps);
+    return std::make_shared<InternalChoice>(ps);
 }
 
-std::shared_ptr<InternalChoice>
-InternalChoice::create(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+std::shared_ptr<Process>
+internal_choice(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
 {
-    return std::make_shared<ConcreteInternalChoice>(
+    return std::make_shared<InternalChoice>(
             Process::Set{std::move(p), std::move(q)});
 }
 

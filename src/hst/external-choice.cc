@@ -5,9 +5,10 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/external-choice.h"
+#include "hst/operators.h"
 
-#include <string>
+#include <memory>
+#include <ostream>
 
 #include "hst/event.h"
 #include "hst/hash.h"
@@ -15,21 +16,31 @@
 
 namespace hst {
 
-class ConcreteExternalChoice : public ExternalChoice {
+class ExternalChoice : public Process {
   public:
-    ConcreteExternalChoice(Process::Set ps) : ExternalChoice(std::move(ps)) {}
+    explicit ExternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 6; }
+    void print(std::ostream& out) const override;
+
+  private:
+    Process::Set ps_;
 };
 
-std::shared_ptr<ExternalChoice>
-ExternalChoice::create(Process::Set ps)
+std::shared_ptr<Process>
+external_choice(Process::Set ps)
 {
-    return std::make_shared<ConcreteExternalChoice>(ps);
+    return std::make_shared<ExternalChoice>(ps);
 }
 
-std::shared_ptr<ExternalChoice>
-ExternalChoice::create(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+std::shared_ptr<Process>
+external_choice(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
 {
-    return std::make_shared<ConcreteExternalChoice>(
+    return std::make_shared<ExternalChoice>(
             Process::Set{std::move(p), std::move(q)});
 }
 
@@ -81,7 +92,7 @@ ExternalChoice::afters(Event initial, Process::Set* out)
                 // (Ps ∖ {P} ∪ {P'})
                 ps_prime.insert(p_prime);
                 // Create □ (Ps ∖ {P} ∪ {P'}) as a result.
-                out->insert(ExternalChoice::create(ps_prime));
+                out->insert(external_choice(ps_prime));
                 // Reset Ps' back to Ps ∖ {P}.
                 ps_prime.erase(p_prime);
             }
