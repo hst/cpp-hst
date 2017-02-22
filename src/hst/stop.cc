@@ -7,16 +7,20 @@
 
 #include "hst/stop.h"
 
+#include <memory>
+
 #include "hst/event.h"
 #include "hst/process.h"
 
 namespace hst {
 
-Stop*
-Stop::get()
+class ConcreteStop : public Stop {};
+
+std::shared_ptr<Stop>
+Stop::create()
 {
-    static Stop stop;
-    return &stop;
+    static std::shared_ptr<Stop> stop = std::make_shared<ConcreteStop>();
+    return stop;
 }
 
 void

@@ -15,6 +15,20 @@
 
 namespace hst {
 
+class ConcretePrefix : public Prefix {
+  public:
+    ConcretePrefix(Event a, std::shared_ptr<Process> p)
+        : Prefix(a, std::move(p))
+    {
+    }
+};
+
+std::shared_ptr<Prefix>
+Prefix::create(Event a, std::shared_ptr<Process> p)
+{
+    return std::make_shared<ConcretePrefix>(a, std::move(p));
+}
+
 void
 Prefix::initials(std::set<Event>* out)
 {
@@ -22,7 +36,7 @@ Prefix::initials(std::set<Event>* out)
 }
 
 void
-Prefix::afters(Event initial, std::set<Process*>* out)
+Prefix::afters(Event initial, Process::Set* out)
 {
     if (initial == a_) {
         out->insert(p_);

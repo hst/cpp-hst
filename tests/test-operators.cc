@@ -34,7 +34,7 @@ events_from_names(std::initializer_list<const std::string> names)
 }
 
 void
-check_initials(Process* process,
+check_initials(const std::shared_ptr<Process>& process,
                std::initializer_list<const std::string> expected)
 {
     Event::Set actual;
@@ -43,8 +43,9 @@ check_initials(Process* process,
 }
 
 void
-check_afters(Process* process, const std::string& initial,
-             std::initializer_list<Process*> expected)
+check_afters(const std::shared_ptr<Process>& process,
+             const std::string& initial,
+             std::initializer_list<std::shared_ptr<Process>> expected)
 {
     Process::Set actual;
     process->afters(Event(initial), &actual);
@@ -57,17 +58,17 @@ TEST_CASE_GROUP("prefix");
 
 TEST_CASE("a → STOP")
 {
-    Prefix p(Event("a"), Stop::get());
-    check_initials(&p, {"a"});
-    check_afters(&p, "a", {Stop::get()});
-    check_afters(&p, "τ", {});
+    auto p = Prefix::create(Event("a"), Stop::create());
+    check_initials(p, {"a"});
+    check_afters(p, "a", {Stop::create()});
+    check_afters(p, "τ", {});
 }
 
 TEST_CASE_GROUP("STOP");
 
 TEST_CASE("STOP")
 {
-    Stop* stop = Stop::get();
+    auto stop = Stop::create();
     check_initials(stop, {});
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
