@@ -5,9 +5,10 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/stop.h"
+#include "hst/operators.h"
 
 #include <memory>
+#include <ostream>
 
 #include "hst/event.h"
 #include "hst/hash.h"
@@ -15,12 +16,23 @@
 
 namespace hst {
 
-class ConcreteStop : public Stop {};
+class Stop : public Process {
+  public:
+    Stop() = default;
 
-std::shared_ptr<Stop>
-Stop::create()
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 1; }
+    void print(std::ostream& out) const override;
+};
+
+std::shared_ptr<Process>
+stop()
 {
-    static std::shared_ptr<Stop> stop = std::make_shared<ConcreteStop>();
+    static std::shared_ptr<Process> stop = std::make_shared<Stop>();
     return stop;
 }
 

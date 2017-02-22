@@ -13,12 +13,8 @@
 #include "test-harness.cc.in"
 
 #include "hst/event.h"
-#include "hst/external-choice.h"
-#include "hst/internal-choice.h"
-#include "hst/prefix.h"
+#include "hst/operators.h"
 #include "hst/process.h"
-#include "hst/sequential-composition.h"
-#include "hst/stop.h"
 
 // Don't check the semantics of any of the operators here; this file just checks
 // that the CSP₀ parser produces the same processes that you'd get constructing
@@ -26,14 +22,14 @@
 // each operator behaves as we expect it to.
 
 using hst::Event;
-using hst::ExternalChoice;
-using hst::InternalChoice;
 using hst::ParseError;
-using hst::Prefix;
 using hst::Process;
-using hst::SequentialComposition;
-using hst::Skip;
-using hst::Stop;
+using hst::external_choice;
+using hst::internal_choice;
+using hst::prefix;
+using hst::sequential_composition;
+using hst::skip;
+using hst::stop;
 
 static void
 check_csp0_valid(const std::string& csp0)
@@ -97,7 +93,7 @@ TEST_CASE_GROUP("CSP₀ primitives");
 
 TEST_CASE("parse: STOP")
 {
-    auto expected = Stop::create();
+    auto expected = stop();
     check_csp0_eq("STOP", expected);
     check_csp0_eq(" STOP", expected);
     check_csp0_eq("STOP ", expected);
@@ -106,7 +102,7 @@ TEST_CASE("parse: STOP")
 
 TEST_CASE("parse: SKIP")
 {
-    auto expected = Skip::create();
+    auto expected = skip();
     check_csp0_eq("SKIP", expected);
     check_csp0_eq(" SKIP", expected);
     check_csp0_eq("SKIP ", expected);
@@ -117,8 +113,7 @@ TEST_CASE_GROUP("CSP₀ operators");
 
 TEST_CASE("parse: a → STOP □ SKIP")
 {
-    auto expected = ExternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()), Skip::create());
+    auto expected = external_choice(prefix(Event("a"), stop()), skip());
     check_csp0_eq("a->STOP[]SKIP", expected);
     check_csp0_eq(" a->STOP[]SKIP", expected);
     check_csp0_eq(" a ->STOP[]SKIP", expected);
@@ -141,18 +136,17 @@ TEST_CASE("parse: a → STOP □ SKIP")
 
 TEST_CASE("associativity: a → STOP □ b → STOP □ c → STOP")
 {
-    auto expected = ExternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()),
-            ExternalChoice::create(Prefix::create(Event("b"), Stop::create()),
-                                   Prefix::create(Event("c"), Stop::create())));
+    auto expected =
+            external_choice(prefix(Event("a"), stop()),
+                            external_choice(prefix(Event("b"), stop()),
+                                            prefix(Event("c"), stop())));
     check_csp0_eq("a -> STOP [] b -> STOP [] c -> STOP", expected);
     check_csp0_eq("a → STOP □ b → STOP □ c → STOP", expected);
 }
 
 TEST_CASE("parse: a → STOP ⊓ SKIP")
 {
-    auto expected = InternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()), Skip::create());
+    auto expected = internal_choice(prefix(Event("a"), stop()), skip());
     check_csp0_eq("a->STOP|~|SKIP", expected);
     check_csp0_eq(" a->STOP|~|SKIP", expected);
     check_csp0_eq(" a ->STOP|~|SKIP", expected);
@@ -175,17 +169,17 @@ TEST_CASE("parse: a → STOP ⊓ SKIP")
 
 TEST_CASE("associativity: a → STOP ⊓ b → STOP ⊓ c → STOP")
 {
-    auto expected = InternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()),
-            InternalChoice::create(Prefix::create(Event("b"), Stop::create()),
-                                   Prefix::create(Event("c"), Stop::create())));
+    auto expected =
+            internal_choice(prefix(Event("a"), stop()),
+                            internal_choice(prefix(Event("b"), stop()),
+                                            prefix(Event("c"), stop())));
     check_csp0_eq("a -> STOP |~| b -> STOP |~| c -> STOP", expected);
     check_csp0_eq("a → STOP ⊓ b → STOP ⊓ c → STOP", expected);
 }
 
 TEST_CASE("parse: (STOP)")
 {
-    auto expected = Stop::create();
+    auto expected = stop();
     check_csp0_eq("(STOP)", expected);
     check_csp0_eq(" (STOP)", expected);
     check_csp0_eq(" ( STOP)", expected);
@@ -197,7 +191,7 @@ TEST_CASE("parse: (STOP)")
 
 TEST_CASE("parse: a → STOP")
 {
-    auto expected = Prefix::create(Event("a"), Stop::create());
+    auto expected = prefix(Event("a"), stop());
     check_csp0_eq("a->STOP", expected);
     check_csp0_eq(" a->STOP", expected);
     check_csp0_eq(" a ->STOP", expected);
@@ -219,16 +213,14 @@ TEST_CASE("parse: a → STOP")
 
 TEST_CASE("associativity: a → b → STOP")
 {
-    auto expected = Prefix::create(Event("a"),
-                                   Prefix::create(Event("b"), Stop::create()));
+    auto expected = prefix(Event("a"), prefix(Event("b"), stop()));
     check_csp0_eq("a -> b -> STOP", expected);
     check_csp0_eq("a → b → STOP", expected);
 }
 
 TEST_CASE("parse: □ {a → STOP, SKIP}")
 {
-    auto expected = ExternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()), Skip::create());
+    auto expected = external_choice(prefix(Event("a"), stop()), skip());
     check_csp0_eq("[]{a->STOP,SKIP}", expected);
     check_csp0_eq(" []{a->STOP,SKIP}", expected);
     check_csp0_eq(" [] {a->STOP,SKIP}", expected);
@@ -264,8 +256,7 @@ TEST_CASE("parse: □ {a → STOP, SKIP}")
 
 TEST_CASE("parse: ⊓ {a → STOP, SKIP}")
 {
-    auto expected = InternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()), Skip::create());
+    auto expected = internal_choice(prefix(Event("a"), stop()), skip());
     check_csp0_eq("|~|{a->STOP,SKIP}", expected);
     check_csp0_eq(" |~|{a->STOP,SKIP}", expected);
     check_csp0_eq(" |~| {a->STOP,SKIP}", expected);
@@ -301,8 +292,7 @@ TEST_CASE("parse: ⊓ {a → STOP, SKIP}")
 
 TEST_CASE("parse: a → SKIP ; STOP")
 {
-    auto expected = SequentialComposition::create(
-            Prefix::create(Event("a"), Skip::create()), Stop::create());
+    auto expected = sequential_composition(prefix(Event("a"), skip()), stop());
     check_csp0_eq("a→SKIP;STOP", expected);
     check_csp0_eq(" a→SKIP;STOP", expected);
     check_csp0_eq(" a →SKIP;STOP", expected);
@@ -322,20 +312,18 @@ TEST_CASE("parse: a → SKIP ; STOP")
 
 TEST_CASE("associativity: a → SKIP ; b → SKIP ; c → SKIP")
 {
-    auto expected = SequentialComposition::create(
-            Prefix::create(Event("a"), Skip::create()),
-            SequentialComposition::create(
-                    Prefix::create(Event("b"), Skip::create()),
-                    Prefix::create(Event("c"), Skip::create())));
+    auto expected = sequential_composition(
+            prefix(Event("a"), skip()),
+            sequential_composition(prefix(Event("b"), skip()),
+                                   prefix(Event("c"), skip())));
     check_csp0_eq("a → SKIP ; b → SKIP ; c → SKIP", expected);
 }
 
 TEST_CASE("precedence: a → STOP □ b → STOP ⊓ c → STOP")
 {
-    auto expected = InternalChoice::create(
-            ExternalChoice::create(Prefix::create(Event("a"), Stop::create()),
-                                   Prefix::create(Event("b"), Stop::create())),
-            Prefix::create(Event("c"), Stop::create()));
+    auto expected = internal_choice(external_choice(prefix(Event("a"), stop()),
+                                                    prefix(Event("b"), stop())),
+                                    prefix(Event("c"), stop()));
     // Expected result is
     // (a → STOP □ b → STOP) ⊓ (c → STOP)
     check_csp0_eq("a → STOP □ b → STOP ⊓ c → STOP", expected);
@@ -343,11 +331,10 @@ TEST_CASE("precedence: a → STOP □ b → STOP ⊓ c → STOP")
 
 TEST_CASE("precedence: a → STOP □ b → SKIP ; c → STOP")
 {
-    auto expected = ExternalChoice::create(
-            Prefix::create(Event("a"), Stop::create()),
-            SequentialComposition::create(
-                    Prefix::create(Event("b"), Skip::create()),
-                    Prefix::create(Event("c"), Stop::create())));
+    auto expected =
+            external_choice(prefix(Event("a"), stop()),
+                            sequential_composition(prefix(Event("b"), skip()),
+                                                   prefix(Event("c"), stop())));
     // Expected result is
     // a → STOP □ (b → SKIP ; c → STOP)
     check_csp0_eq("a → STOP □ b → SKIP ; c → STOP", expected);

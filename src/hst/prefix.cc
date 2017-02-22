@@ -5,10 +5,10 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/prefix.h"
+#include "hst/operators.h"
 
+#include <memory>
 #include <ostream>
-#include <set>
 
 #include "hst/event.h"
 #include "hst/hash.h"
@@ -16,18 +16,26 @@
 
 namespace hst {
 
-class ConcretePrefix : public Prefix {
+class Prefix : public Process {
   public:
-    ConcretePrefix(Event a, std::shared_ptr<Process> p)
-        : Prefix(a, std::move(p))
-    {
-    }
+    Prefix(Event a, std::shared_ptr<Process> p) : a_(a), p_(std::move(p)) {}
+    void initials(Event::Set* out) override;
+    void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 1; }
+    void print(std::ostream& out) const override;
+
+  private:
+    Event a_;
+    std::shared_ptr<Process> p_;
 };
 
-std::shared_ptr<Prefix>
-Prefix::create(Event a, std::shared_ptr<Process> p)
+std::shared_ptr<Process>
+prefix(Event a, std::shared_ptr<Process> p)
 {
-    return std::make_shared<ConcretePrefix>(a, std::move(p));
+    return std::make_shared<Prefix>(a, std::move(p));
 }
 
 // Operational semantics for a → P
