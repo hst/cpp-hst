@@ -17,6 +17,7 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 libhst_la_SOURCES = \
 	src/hst/event.h \
 	src/hst/event.cc \
+	src/hst/hash.h \
 	src/hst/prefix.h \
 	src/hst/prefix.cc \
 	src/hst/process.h \

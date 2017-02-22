@@ -21,6 +21,9 @@ class Stop : public Process {
 
     void initials(Event::Set* out) override;
     void afters(Event initial, Process::Set* out) override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
     unsigned int precedence() const override { return 1; }
     void print(std::ostream& out) const override;
 

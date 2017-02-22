@@ -10,15 +10,32 @@
 
 #include <memory>
 #include <ostream>
-#include <set>
+#include <unordered_set>
 
 #include "hst/event.h"
 
 namespace hst {
 
 class Process {
+  private:
+    struct deref_hash {
+        std::size_t operator()(const std::shared_ptr<Process>& ptr) const
+        {
+            return ptr->hash();
+        }
+    };
+
+    struct deref_key_equal {
+        bool operator()(const std::shared_ptr<Process>& lhs,
+                        const std::shared_ptr<Process>& rhs) const
+        {
+            return *lhs == *rhs;
+        }
+    };
+
   public:
-    using Set = std::set<std::shared_ptr<Process>>;
+    using Set = std::unordered_set<std::shared_ptr<Process>, deref_hash,
+                                   deref_key_equal>;
 
     virtual ~Process() = default;
 
@@ -28,6 +45,10 @@ class Process {
     // Fill `out` with the subprocesses that you reach after following a single
     // `initial` event from this process.
     virtual void afters(Event initial, Set* out) = 0;
+
+    virtual std::size_t hash() const = 0;
+    virtual bool operator==(const Process& other) const = 0;
+    bool operator!=(const Process& other) const { return !(*this == other); }
 
     virtual unsigned int precedence() const = 0;
     virtual void print(std::ostream& out) const = 0;
@@ -57,5 +78,22 @@ operator<<(std::ostream& out, const Process& process)
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 
+bool
+operator==(const Process::Set& lhs, const Process::Set& rhs);
+
 }  // namespace hst
+
+namespace std {
+
+template <>
+struct hash<hst::Process>
+{
+    std::size_t operator()(const hst::Process& process) const
+    {
+        return process.hash();
+    }
+};
+
+}  // namespace std
+
 #endif  // HST_PROCESS_H

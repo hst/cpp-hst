@@ -9,6 +9,20 @@
 
 namespace hst {
 
+bool
+operator==(const Process::Set& lhs, const Process::Set& rhs)
+{
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    for (const auto& process : lhs) {
+        if (rhs.find(process) == rhs.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes)
 {
     bool first = true;

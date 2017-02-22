@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "hst/event.h"
+#include "hst/hash.h"
 #include "hst/process.h"
 
 namespace hst {
@@ -31,6 +32,23 @@ Stop::initials(Event::Set* out)
 void
 Stop::afters(Event initial, Process::Set* out)
 {
+}
+
+std::size_t
+Stop::hash() const
+{
+    static hash_scope stop;
+    return hasher(stop).value();
+}
+
+bool
+Stop::operator==(const Process& other_) const
+{
+    const Stop* other = dynamic_cast<const Stop*>(&other_);
+    if (other == nullptr) {
+        return false;
+    }
+    return true;
 }
 
 void

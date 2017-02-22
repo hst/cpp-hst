@@ -11,6 +11,7 @@
 #include <set>
 
 #include "hst/event.h"
+#include "hst/hash.h"
 #include "hst/process.h"
 
 namespace hst {
@@ -41,6 +42,23 @@ Prefix::afters(Event initial, Process::Set* out)
     if (initial == a_) {
         out->insert(p_);
     }
+}
+
+std::size_t
+Prefix::hash() const
+{
+    static hash_scope prefix;
+    return hasher(prefix).add(a_).add(*p_).value();
+}
+
+bool
+Prefix::operator==(const Process& other_) const
+{
+    const Prefix* other = dynamic_cast<const Prefix*>(&other_);
+    if (other == nullptr) {
+        return false;
+    }
+    return a_ == other->a_ && *p_ == *other->p_;
 }
 
 void

@@ -20,13 +20,11 @@ class Prefix : public Process {
   public:
     static std::shared_ptr<Prefix> create(Event a, std::shared_ptr<Process> p);
 
-    // Fill `out` with the initial events of this process.
     void initials(Event::Set* out) override;
-
-    // Fill `out` with the subprocesses that you reach after following a single
-    // `initial` event from this process.
     void afters(Event initial, Process::Set* out) override;
 
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
     unsigned int precedence() const override { return 1; }
     void print(std::ostream& out) const override;
 
