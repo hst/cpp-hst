@@ -68,6 +68,9 @@ class Process {
             inner.print(out);
         }
     }
+
+    void print_subprocess_set(std::ostream& out, const Process::Set& processes,
+                              const std::string& binary_op) const;
 };
 
 inline std::ostream&
@@ -76,10 +79,6 @@ operator<<(std::ostream& out, const Process& process)
     process.print(out);
     return out;
 }
-
-void
-print_set(std::ostream& out, const Process::Set& processes,
-          const std::string& binary_op = std::string());
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 

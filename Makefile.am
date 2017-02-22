@@ -19,6 +19,8 @@ libhst_la_SOURCES = \
 	src/hst/csp0.cc \
 	src/hst/event.h \
 	src/hst/event.cc \
+	src/hst/external-choice.h \
+	src/hst/external-choice.cc \
 	src/hst/hash.h \
 	src/hst/internal-choice.h \
 	src/hst/internal-choice.cc \
