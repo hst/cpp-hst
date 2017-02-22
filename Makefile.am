@@ -15,6 +15,8 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 @VALGRIND_CHECK_RULES@
 
 libhst_la_SOURCES = \
+	src/hst/csp0.h \
+	src/hst/csp0.cc \
 	src/hst/event.h \
 	src/hst/event.cc \
 	src/hst/hash.h \
@@ -34,6 +36,7 @@ hst_LDADD = libhst.la
 check_PROGRAMS = \
 	tests/test-harness \
 	tests/test-events \
+	tests/test-csp0 \
 	tests/test-operators
 
 check_LTLIBRARIES = libtests.la
@@ -43,6 +46,7 @@ libtests_la_SOURCES = \
 	tests/test-harness.cc.in
 
 LDADD = libhst.la libtests.la
+tests_test_csp0_LDFLAGS = -no-install
 tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
 tests_test_operators_LDFLAGS = -no-install
