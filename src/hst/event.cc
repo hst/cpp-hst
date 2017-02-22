@@ -58,4 +58,19 @@ std::ostream& operator<<(std::ostream& out, const Event& event)
     return out << event.name();
 }
 
+std::ostream& operator<<(std::ostream& out, const Event::Set& events)
+{
+    bool first = true;
+    out << "{";
+    for (auto event : events) {
+        if (first) {
+            first = false;
+        } else {
+            out << ", ";
+        }
+        out << event;
+    }
+    return out << "}";
+}
+
 }  // namespace hst

@@ -16,7 +16,13 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 
 libhst_la_SOURCES = \
 	src/hst/event.h \
-	src/hst/event.cc
+	src/hst/event.cc \
+	src/hst/prefix.h \
+	src/hst/prefix.cc \
+	src/hst/process.h \
+	src/hst/process.cc \
+	src/hst/stop.h \
+	src/hst/stop.cc
 
 hst_SOURCES = \
 	src/hst/hst/hst.cc
@@ -26,7 +32,8 @@ hst_LDADD = libhst.la
 # are checked before larger features that build on them.
 check_PROGRAMS = \
 	tests/test-harness \
-	tests/test-events
+	tests/test-events \
+	tests/test-operators
 
 check_LTLIBRARIES = libtests.la
 libtests_la_SOURCES = \
@@ -37,5 +44,6 @@ libtests_la_SOURCES = \
 LDADD = libhst.la libtests.la
 tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
+tests_test_operators_LDFLAGS = -no-install
 
 dist_doc_DATA = README.md
