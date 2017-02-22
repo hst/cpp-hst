@@ -8,6 +8,7 @@
 #ifndef HST_PROCESS_H
 #define HST_PROCESS_H
 
+#include <memory>
 #include <ostream>
 #include <set>
 
@@ -17,7 +18,7 @@ namespace hst {
 
 class Process {
   public:
-    using Set = std::set<Process*>;
+    using Set = std::set<std::shared_ptr<Process>>;
 
     virtual ~Process() = default;
 

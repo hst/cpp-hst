@@ -18,7 +18,7 @@ namespace hst {
 
 class Prefix : public Process {
   public:
-    Prefix(Event a, Process* p) : a_(a), p_(p) {}
+    static std::shared_ptr<Prefix> create(Event a, std::shared_ptr<Process> p);
 
     // Fill `out` with the initial events of this process.
     void initials(Event::Set* out) override;
@@ -30,9 +30,12 @@ class Prefix : public Process {
     unsigned int precedence() const override { return 1; }
     void print(std::ostream& out) const override;
 
+  protected:
+    Prefix(Event a, std::shared_ptr<Process> p) : a_(a), p_(p) {}
+
   private:
     Event a_;
-    Process* p_;
+    std::shared_ptr<Process> p_;
 };
 
 }  // namespace hst

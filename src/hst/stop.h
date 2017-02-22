@@ -8,6 +8,8 @@
 #ifndef HST_STOP_H
 #define HST_STOP_H
 
+#include <memory>
+
 #include "hst/event.h"
 #include "hst/process.h"
 
@@ -15,14 +17,14 @@ namespace hst {
 
 class Stop : public Process {
   public:
-    static Stop* get();
+    static std::shared_ptr<Stop> create();
 
     void initials(Event::Set* out) override;
     void afters(Event initial, Process::Set* out) override;
     unsigned int precedence() const override { return 1; }
     void print(std::ostream& out) const override;
 
-  private:
+  protected:
     Stop() = default;
 };
 
