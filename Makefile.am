@@ -17,18 +17,18 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 libhst_la_SOURCES = \
 	src/hst/csp0.h \
 	src/hst/csp0.cc \
+	src/hst/environment.h \
+	src/hst/environment.cc \
 	src/hst/event.h \
 	src/hst/event.cc \
 	src/hst/external-choice.cc \
 	src/hst/hash.h \
 	src/hst/interleave.cc \
 	src/hst/internal-choice.cc \
-	src/hst/operators.h \
 	src/hst/prefix.cc \
 	src/hst/process.h \
 	src/hst/process.cc \
-	src/hst/sequential-composition.cc \
-	src/hst/stop.cc
+	src/hst/sequential-composition.cc
 
 hst_SOURCES = \
 	src/hst/hst/hst.cc

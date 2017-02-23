@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 
+#include "hst/environment.h"
 #include "hst/process.h"
 
 namespace hst {
@@ -30,8 +31,8 @@ operator<<(std::ostream& out, const ParseError& error)
     return out << error.message;
 }
 
-std::shared_ptr<Process>
-load_csp0_string(const std::string& csp0, ParseError* error);
+Process*
+load_csp0_string(Environment* env, const std::string& csp0, ParseError* error);
 
 }  // namespace hst
 #endif  // HST_CSP0_H

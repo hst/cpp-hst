@@ -13,9 +13,11 @@
 #include "test-harness.cc.in"
 
 #include "hst/csp0.h"
+#include "hst/environment.h"
 #include "hst/event.h"
 #include "hst/process.h"
 
+using hst::Environment;
 using hst::Event;
 using hst::ParseError;
 using hst::Process;
@@ -30,11 +32,11 @@ using hst::Process;
 
 namespace {
 
-std::shared_ptr<Process>
-require_csp0(const std::string& csp0)
+Process*
+require_csp0(Environment* env, const std::string& csp0)
 {
     ParseError error;
-    std::shared_ptr<Process> parsed = hst::load_csp0_string(csp0, &error);
+    Process* parsed = hst::load_csp0_string(env, csp0, &error);
     if (!parsed) {
         fail() << "Could not parse " << csp0 << ": " << error << abort_test();
     }
@@ -42,11 +44,12 @@ require_csp0(const std::string& csp0)
 }
 
 Process::Set
-require_csp0_set(std::initializer_list<const std::string> csp0s)
+require_csp0_set(Environment* env,
+                 std::initializer_list<const std::string> csp0s)
 {
     Process::Set set;
     for (const auto& csp0 : csp0s) {
-        set.insert(require_csp0(csp0));
+        set.insert(require_csp0(env, csp0));
     }
     return set;
 }
@@ -64,7 +67,8 @@ events_from_names(std::initializer_list<const std::string> names)
 void
 check_name(const std::string& csp0, const std::string& expected)
 {
-    std::shared_ptr<Process> process = require_csp0(csp0);
+    Environment env;
+    Process* process = require_csp0(&env, csp0);
     std::stringstream actual;
     actual << *process;
     check_eq(actual.str(), expected);
@@ -74,7 +78,8 @@ void
 check_initials(const std::string& csp0,
                std::initializer_list<const std::string> expected)
 {
-    std::shared_ptr<Process> process = require_csp0(csp0);
+    Environment env;
+    Process* process = require_csp0(&env, csp0);
     Event::Set actual;
     process->initials(&actual);
     check_eq(actual, events_from_names(expected));
@@ -84,10 +89,11 @@ void
 check_afters(const std::string& csp0, const std::string& initial,
              std::initializer_list<const std::string> expected)
 {
-    std::shared_ptr<Process> process = require_csp0(csp0);
+    Environment env;
+    Process* process = require_csp0(&env, csp0);
     Process::Set actual;
     process->afters(Event(initial), &actual);
-    check_eq(actual, require_csp0_set(expected));
+    check_eq(actual, require_csp0_set(&env, expected));
 }
 
 }  // namespace
@@ -96,16 +102,26 @@ TEST_CASE_GROUP("process comparisons");
 
 TEST_CASE("can compare individual processes")
 {
-    auto p1 = require_csp0("a → STOP");
-    auto p2 = require_csp0("a → STOP");
+    Environment env;
+    auto p1 = require_csp0(&env, "a → STOP");
+    auto p2 = require_csp0(&env, "a → STOP");
     check_eq(*p1, *p1);
     check_eq(*p1, *p2);
 }
 
+TEST_CASE("processes are deduplicated within an environment")
+{
+    Environment env;
+    auto p1 = require_csp0(&env, "a → STOP");
+    auto p2 = require_csp0(&env, "a → STOP");
+    check_eq(p1, p2);
+}
+
 TEST_CASE("can compare sets of processes")
 {
-    auto p1 = require_csp0("a → STOP");
-    auto p2 = require_csp0("a → STOP");
+    Environment env;
+    auto p1 = require_csp0(&env, "a → STOP");
+    auto p2 = require_csp0(&env, "a → STOP");
     Process::Set set1{p1};
     Process::Set set2{p2};
     check_eq(set1, set1);

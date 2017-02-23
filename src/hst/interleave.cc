@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/operators.h"
+#include "hst/environment.h"
 
 #include <string>
 
@@ -19,7 +19,11 @@ namespace {
 
 class Interleave : public Process {
   public:
-    explicit Interleave(Process::Bag ps) : ps_(std::move(ps)) {}
+    Interleave(Environment* env, Process::Bag ps)
+        : env_(env), ps_(std::move(ps))
+    {
+    }
+
     void initials(Event::Set* out) override;
     void afters(Event initial, Process::Set* out) override;
 
@@ -33,22 +37,23 @@ class Interleave : public Process {
     void tau_afters(Event initial, Process::Set* out);
     void tick_afters(Event initial, Process::Set* out);
 
+    Environment* env_;
     Process::Bag ps_;
 };
 
 }  // namespace
 
-std::shared_ptr<Process>
-interleave(Process::Bag ps)
+Process*
+Environment::interleave(Process::Bag ps)
 {
-    return std::make_shared<Interleave>(ps);
+    return register_process(
+            std::unique_ptr<Process>(new Interleave(this, std::move(ps))));
 }
 
-std::shared_ptr<Process>
-interleave(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+Process*
+Environment::interleave(Process* p, Process* q)
 {
-    return std::make_shared<Interleave>(
-            Process::Bag{std::move(p), std::move(q)});
+    return interleave(Process::Bag{p, q});
 }
 
 // Operational semantics for ⫴ Ps
@@ -111,7 +116,7 @@ Interleave::normal_afters(Event initial, Process::Set* out)
             // (Ps ∖ {P} ∪ {P'})
             ps_prime.insert(p_prime);
             // Create ⫴ (Ps ∖ {P} ∪ {P'}) as a result.
-            out->insert(interleave(ps_prime));
+            out->insert(env_->interleave(ps_prime));
             // Reset Ps' back to Ps ∖ {P}.
             ps_prime.erase(ps_prime.find(p_prime));
         }
@@ -141,10 +146,10 @@ Interleave::tau_afters(Event initial, Process::Set* out)
         if (initials.find(Event::tick()) != initials.end()) {
             // Create Ps ∖ {P} ∪ {STOP}) as a result.
             ps_prime.erase(ps_prime.find(p));
-            ps_prime.insert(stop());
-            out->insert(interleave(ps_prime));
+            ps_prime.insert(env_->stop());
+            out->insert(env_->interleave(ps_prime));
             // Reset Ps' back to Ps.
-            ps_prime.erase(ps_prime.find(stop()));
+            ps_prime.erase(ps_prime.find(env_->stop()));
             ps_prime.insert(p);
         }
     }
@@ -163,7 +168,7 @@ Interleave::tick_afters(Event initial, Process::Set* out)
             return;
         }
     }
-    out->insert(stop());
+    out->insert(env_->stop());
 }
 
 void

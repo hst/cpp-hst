@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/operators.h"
+#include "hst/environment.h"
 
 #include <memory>
 #include <ostream>
@@ -16,9 +16,15 @@
 
 namespace hst {
 
+namespace {
+
 class ExternalChoice : public Process {
   public:
-    explicit ExternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
+    ExternalChoice(Environment* env, Process::Set ps)
+        : env_(env), ps_(std::move(ps))
+    {
+    }
+
     void initials(Event::Set* out) override;
     void afters(Event initial, Process::Set* out) override;
 
@@ -28,20 +34,23 @@ class ExternalChoice : public Process {
     void print(std::ostream& out) const override;
 
   private:
+    Environment* env_;
     Process::Set ps_;
 };
 
-std::shared_ptr<Process>
-external_choice(Process::Set ps)
+}  // namespace
+
+Process*
+Environment::external_choice(Process::Set ps)
 {
-    return std::make_shared<ExternalChoice>(ps);
+    return register_process(
+            std::unique_ptr<Process>(new ExternalChoice(this, std::move(ps))));
 }
 
-std::shared_ptr<Process>
-external_choice(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+Process*
+Environment::external_choice(Process* p, Process* q)
 {
-    return std::make_shared<ExternalChoice>(
-            Process::Set{std::move(p), std::move(q)});
+    return external_choice(Process::Set{p, q});
 }
 
 // Operational semantics for □ Ps
@@ -91,7 +100,7 @@ ExternalChoice::afters(Event initial, Process::Set* out)
                 // (Ps ∖ {P} ∪ {P'})
                 ps_prime.insert(p_prime);
                 // Create □ (Ps ∖ {P} ∪ {P'}) as a result.
-                out->insert(external_choice(ps_prime));
+                out->insert(env_->external_choice(ps_prime));
                 // Reset Ps' back to Ps ∖ {P}.
                 ps_prime.erase(p_prime);
             }

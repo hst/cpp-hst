@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/operators.h"
+#include "hst/environment.h"
 
 #include <memory>
 #include <ostream>
@@ -16,9 +16,11 @@
 
 namespace hst {
 
+namespace {
+
 class Prefix : public Process {
   public:
-    Prefix(Event a, std::shared_ptr<Process> p) : a_(a), p_(std::move(p)) {}
+    Prefix(Event a, Process* p) : a_(a), p_(p) {}
     void initials(Event::Set* out) override;
     void afters(Event initial, Process::Set* out) override;
 
@@ -29,13 +31,15 @@ class Prefix : public Process {
 
   private:
     Event a_;
-    std::shared_ptr<Process> p_;
+    Process* p_;
 };
 
-std::shared_ptr<Process>
-prefix(Event a, std::shared_ptr<Process> p)
+}  // namespace
+
+Process*
+Environment::prefix(Event a, Process* p)
 {
-    return std::make_shared<Prefix>(a, std::move(p));
+    return register_process(std::unique_ptr<Process>(new Prefix(a, p)));
 }
 
 // Operational semantics for a → P

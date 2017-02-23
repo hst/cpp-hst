@@ -11,8 +11,8 @@
 #include <functional>
 #include <string>
 
+#include "hst/environment.h"
 #include "hst/event.h"
-#include "hst/operators.h"
 #include "hst/process.h"
 
 //------------------------------------------------------------------------------
@@ -94,9 +94,14 @@ namespace hst {
 
 class ParseState {
   public:
-    explicit ParseState(const std::string& csp0) : ParseState(csp0, nullptr) {}
-    ParseState(const std::string& csp0, ParseError* error)
+    explicit ParseState(const std::string& csp0)
+        : ParseState(nullptr, csp0, nullptr)
+    {
+    }
+
+    ParseState(Environment* env, const std::string& csp0, ParseError* error)
         : parent_(nullptr),
+          env_(env),
           start_(csp0.data()),
           p_(csp0.data()),
           eof_(p_ + csp0.size()),
@@ -117,6 +122,8 @@ class ParseState {
             parent_->p_ = p_;
         }
     }
+
+    Environment* env() const { return env_; }
 
     char get();
     bool get(char* out);
@@ -146,13 +153,15 @@ class ParseState {
     // before it goes out of scope; that will prevent it from updating this.
     ParseState attempt(const std::string& label)
     {
-        return ParseState(this, label, p_, p_, eof_, error_);
+        return ParseState(this, env_, label, p_, p_, eof_, error_);
     }
 
   private:
-    ParseState(ParseState* parent, const std::string& label, const char* start,
-               const char* p, const char* eof, ParseError* error)
+    ParseState(ParseState* parent, Environment* env, const std::string& label,
+               const char* start, const char* p, const char* eof,
+               ParseError* error)
         : parent_(parent),
+          env_(env),
           label_(label),
           start_(start),
           p_(p),
@@ -163,6 +172,7 @@ class ParseState {
     }
 
     ParseState* parent_;
+    Environment* env_;
     const std::string label_;
     const char* start_;
     const char* p_;
@@ -295,13 +305,13 @@ require_token(ParseState* parent, const std::string& expected_str)
 }
 
 static bool
-parse_process(ParseState* state, std::shared_ptr<Process>* out);
+parse_process(ParseState* state, Process** out);
 
 static bool
 parse_process_bag(ParseState* parent, Process::Bag* out)
 {
     ParseState state = parent->attempt("process bag");
-    std::shared_ptr<Process> process;
+    Process* process;
 
     return_if_error(require_token(&state, "{"));
     skip_whitespace(&state);
@@ -325,7 +335,7 @@ static bool
 parse_process_set(ParseState* parent, Process::Set* out)
 {
     ParseState state = parent->attempt("process set");
-    std::shared_ptr<Process> process;
+    Process* process;
 
     return_if_error(require_token(&state, "{"));
     skip_whitespace(&state);
@@ -363,7 +373,7 @@ parse_process_set(ParseState* parent, Process::Set* out)
 // entries in the precedence order list.
 
 static bool
-parse_parenthesized(ParseState* state, std::shared_ptr<Process>* out)
+parse_parenthesized(ParseState* state, Process** out)
 {
     return_if_error(require_token(state, "("));
     skip_whitespace(state);
@@ -374,23 +384,23 @@ parse_parenthesized(ParseState* state, std::shared_ptr<Process>* out)
 }
 
 static bool
-parse_stop(ParseState* state, std::shared_ptr<Process>* out)
+parse_stop(ParseState* state, Process** out)
 {
     return_if_error(require_token(state, "STOP"));
-    *out = stop();
+    *out = state->env()->stop();
     return true;
 }
 
 static bool
-parse_skip(ParseState* state, std::shared_ptr<Process>* out)
+parse_skip(ParseState* state, Process** out)
 {
     return_if_error(require_token(state, "SKIP"));
-    *out = skip();
+    *out = state->env()->skip();
     return true;
 }
 
 static bool
-parse_process1(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process1(ParseState* parent, Process** out)
 {
     // process1 = (process) | STOP | SKIP
     ParseState state = parent->attempt("process1");
@@ -401,7 +411,7 @@ parse_process1(ParseState* parent, std::shared_ptr<Process>* out)
 }
 
 static bool
-parse_process2(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process2(ParseState* parent, Process** out)
 {
     // process2 = process1 | identifier | event → process2
     return_if_success(parse_process1(parent, out));
@@ -414,10 +424,10 @@ parse_process2(ParseState* parent, std::shared_ptr<Process>* out)
     // prefix
     if (require_token(&state, "->") || require_token(&state, "→")) {
         Event initial(id);
-        std::shared_ptr<Process> after;
+        Process* after;
         skip_whitespace(&state);
         return_if_error(parse_process2(&state, &after));
-        *out = prefix(initial, std::move(after));
+        *out = state.env()->prefix(initial, std::move(after));
         return true;
     }
 
@@ -425,11 +435,11 @@ parse_process2(ParseState* parent, std::shared_ptr<Process>* out)
 }
 
 static bool
-parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process3(ParseState* parent, Process** out)
 {
     // process3 = process2 (; process3)?
 
-    std::shared_ptr<Process> lhs;
+    Process* lhs;
     return_if_error(parse_process2(parent, &lhs));
 
     ParseState state = parent->attempt("process3");
@@ -440,18 +450,18 @@ parse_process3(ParseState* parent, std::shared_ptr<Process>* out)
     }
 
     skip_whitespace(&state);
-    std::shared_ptr<Process> rhs;
+    Process* rhs;
     return_if_error(parse_process3(&state, &rhs));
-    *out = sequential_composition(std::move(lhs), std::move(rhs));
+    *out = state.env()->sequential_composition(std::move(lhs), std::move(rhs));
     return true;
 }
 
 #define parse_process5 parse_process3  // NIY
 
 static bool
-parse_process6(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process6(ParseState* parent, Process** out)
 {
-    std::shared_ptr<Process> lhs;
+    Process* lhs;
     // process6 = process5 (⊓ process6)?
     return_if_error(parse_process5(parent, &lhs));
 
@@ -462,20 +472,21 @@ parse_process6(ParseState* parent, std::shared_ptr<Process>* out)
         return true;
     }
     skip_whitespace(&state);
-    std::shared_ptr<Process> rhs;
+    Process* rhs;
     if (!parse_process6(&state, &rhs) != 0) {
         // Expected process after ⊓
         return state.parse_error("Expected process after □");
     }
 
-    *out = external_choice(Process::Set{std::move(lhs), std::move(rhs)});
+    *out = state.env()->external_choice(
+            Process::Set{std::move(lhs), std::move(rhs)});
     return true;
 }
 
 static bool
-parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process7(ParseState* parent, Process** out)
 {
-    std::shared_ptr<Process> lhs;
+    Process* lhs;
     // process7 = process6 (⊓ process7)?
     return_if_error(parse_process6(parent, &lhs));
 
@@ -486,22 +497,23 @@ parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
         return true;
     }
     skip_whitespace(&state);
-    std::shared_ptr<Process> rhs;
+    Process* rhs;
     if (!parse_process7(&state, &rhs) != 0) {
         // Expected process after ⊓
         return state.parse_error("Expected process after ⊓");
     }
 
-    *out = internal_choice(Process::Set{std::move(lhs), std::move(rhs)});
+    *out = state.env()->internal_choice(
+            Process::Set{std::move(lhs), std::move(rhs)});
     return true;
 }
 
 #define parse_process8 parse_process7  // NIY
 
 static bool
-parse_process9(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process9(ParseState* parent, Process** out)
 {
-    std::shared_ptr<Process> lhs;
+    Process* lhs;
     // process9 = process8 (⊓ process9)?
     return_if_error(parse_process8(parent, &lhs));
 
@@ -512,20 +524,21 @@ parse_process9(ParseState* parent, std::shared_ptr<Process>* out)
         return true;
     }
     skip_whitespace(&state);
-    std::shared_ptr<Process> rhs;
+    Process* rhs;
     if (!parse_process9(&state, &rhs) != 0) {
         // Expected process after ⫴
         return state.parse_error("Expected process after ⫴");
     }
 
-    *out = interleave(Process::Bag{std::move(lhs), std::move(rhs)});
+    *out = state.env()->interleave(
+            Process::Bag{std::move(lhs), std::move(rhs)});
     return true;
 }
 
 #define parse_process10 parse_process9  // NIY
 
 static bool
-parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
+parse_process11(ParseState* parent, Process** out)
 {
     // process11 = process10 | □ {process} | ⊓ {process}
     ParseState state = parent->attempt("process11");
@@ -535,7 +548,7 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         skip_whitespace(&state);
         Process::Set processes;
         return_if_error(parse_process_set(&state, &processes));
-        *out = external_choice(std::move(processes));
+        *out = state.env()->external_choice(std::move(processes));
         return true;
     }
 
@@ -544,7 +557,7 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         skip_whitespace(&state);
         Process::Set processes;
         return_if_error(parse_process_set(&state, &processes));
-        *out = internal_choice(std::move(processes));
+        *out = state.env()->internal_choice(std::move(processes));
         return true;
     }
 
@@ -553,7 +566,7 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         skip_whitespace(&state);
         Process::Bag processes;
         return_if_error(parse_process_bag(&state, &processes));
-        *out = interleave(std::move(processes));
+        *out = state.env()->interleave(std::move(processes));
         return true;
     }
 
@@ -562,18 +575,18 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
 }
 
 static bool
-parse_process(ParseState* state, std::shared_ptr<Process>* out)
+parse_process(ParseState* state, Process** out)
 {
     return parse_process11(state, out);
 }
 
-std::shared_ptr<Process>
-load_csp0_string(const std::string& csp0, ParseError* error)
+Process*
+load_csp0_string(Environment* env, const std::string& csp0, ParseError* error)
 {
-    ParseState state(csp0, error);
+    ParseState state(env, csp0, error);
     skip_whitespace(&state);
     debug() << "--- " << csp0;
-    std::shared_ptr<Process> result;
+    Process* result;
     if (unlikely(!parse_process(&state, &result))) {
         return nullptr;
     }

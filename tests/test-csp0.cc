@@ -12,8 +12,8 @@
 #include "test-cases.h"
 #include "test-harness.cc.in"
 
+#include "hst/environment.h"
 #include "hst/event.h"
-#include "hst/operators.h"
 #include "hst/process.h"
 
 // Don't check the semantics of any of the operators here; this file just checks
@@ -21,21 +21,17 @@
 // things by hand.  Look in test-operators.cc for test cases that verify that
 // each operator behaves as we expect it to.
 
+using hst::Environment;
 using hst::Event;
 using hst::ParseError;
 using hst::Process;
-using hst::external_choice;
-using hst::internal_choice;
-using hst::prefix;
-using hst::sequential_composition;
-using hst::skip;
-using hst::stop;
 
 static void
 check_csp0_valid(const std::string& csp0)
 {
+    Environment env;
     ParseError error;
-    if (!hst::load_csp0_string(csp0, &error)) {
+    if (!hst::load_csp0_string(&env, csp0, &error)) {
         fail() << "Could not parse " << csp0 << ": " << error << abort_test();
     }
 }
@@ -43,17 +39,18 @@ check_csp0_valid(const std::string& csp0)
 static void
 check_csp0_invalid(const std::string& csp0)
 {
+    Environment env;
     ParseError error;
-    if (hst::load_csp0_string(csp0, &error)) {
+    if (hst::load_csp0_string(&env, csp0, &error)) {
         fail() << "Shouldn't be able to parse " << csp0 << abort_test();
     }
 }
 
 static void
-check_csp0_eq(const std::string& csp0, const std::shared_ptr<Process>& expected)
+check_csp0_eq(Environment* env, const std::string& csp0, Process* expected)
 {
     ParseError error;
-    std::shared_ptr<Process> actual = hst::load_csp0_string(csp0, &error);
+    Process* actual = hst::load_csp0_string(env, csp0, &error);
     if (!actual) {
         fail() << "Could not parse " << csp0 << ": " << error << abort_test();
     }
@@ -93,41 +90,45 @@ TEST_CASE_GROUP("CSP₀ primitives");
 
 TEST_CASE("parse: STOP")
 {
-    auto expected = stop();
-    check_csp0_eq("STOP", expected);
-    check_csp0_eq(" STOP", expected);
-    check_csp0_eq("STOP ", expected);
-    check_csp0_eq(" STOP ", expected);
+    Environment env;
+    auto expected = env.stop();
+    check_csp0_eq(&env, "STOP", expected);
+    check_csp0_eq(&env, " STOP", expected);
+    check_csp0_eq(&env, "STOP ", expected);
+    check_csp0_eq(&env, " STOP ", expected);
 }
 
 TEST_CASE("parse: SKIP")
 {
-    auto expected = skip();
-    check_csp0_eq("SKIP", expected);
-    check_csp0_eq(" SKIP", expected);
-    check_csp0_eq("SKIP ", expected);
-    check_csp0_eq(" SKIP ", expected);
+    Environment env;
+    auto expected = env.skip();
+    check_csp0_eq(&env, "SKIP", expected);
+    check_csp0_eq(&env, " SKIP", expected);
+    check_csp0_eq(&env, "SKIP ", expected);
+    check_csp0_eq(&env, " SKIP ", expected);
 }
 
 TEST_CASE_GROUP("CSP₀ operators");
 
 TEST_CASE("parse: a → STOP □ SKIP")
 {
-    auto expected = external_choice(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("a->STOP[]SKIP", expected);
-    check_csp0_eq(" a->STOP[]SKIP", expected);
-    check_csp0_eq(" a ->STOP[]SKIP", expected);
-    check_csp0_eq(" a -> STOP[]SKIP", expected);
-    check_csp0_eq(" a -> STOP []SKIP", expected);
-    check_csp0_eq(" a -> STOP [] SKIP", expected);
-    check_csp0_eq(" a -> STOP [] SKIP ", expected);
-    check_csp0_eq("a→STOP□SKIP", expected);
-    check_csp0_eq(" a→STOP□SKIP", expected);
-    check_csp0_eq(" a →STOP□SKIP", expected);
-    check_csp0_eq(" a → STOP□SKIP", expected);
-    check_csp0_eq(" a → STOP □SKIP", expected);
-    check_csp0_eq(" a → STOP □ SKIP", expected);
-    check_csp0_eq(" a → STOP □ SKIP ", expected);
+    Environment env;
+    auto expected =
+            env.external_choice(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "a->STOP[]SKIP", expected);
+    check_csp0_eq(&env, " a->STOP[]SKIP", expected);
+    check_csp0_eq(&env, " a ->STOP[]SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP[]SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP []SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP [] SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP [] SKIP ", expected);
+    check_csp0_eq(&env, "a→STOP□SKIP", expected);
+    check_csp0_eq(&env, " a→STOP□SKIP", expected);
+    check_csp0_eq(&env, " a →STOP□SKIP", expected);
+    check_csp0_eq(&env, " a → STOP□SKIP", expected);
+    check_csp0_eq(&env, " a → STOP □SKIP", expected);
+    check_csp0_eq(&env, " a → STOP □ SKIP", expected);
+    check_csp0_eq(&env, " a → STOP □ SKIP ", expected);
     // Fail to parse a bunch of invalid statements.
     // a is undefined
     check_csp0_invalid("a □ STOP");
@@ -136,31 +137,34 @@ TEST_CASE("parse: a → STOP □ SKIP")
 
 TEST_CASE("associativity: a → STOP □ b → STOP □ c → STOP")
 {
-    auto expected =
-            external_choice(prefix(Event("a"), stop()),
-                            external_choice(prefix(Event("b"), stop()),
-                                            prefix(Event("c"), stop())));
-    check_csp0_eq("a -> STOP [] b -> STOP [] c -> STOP", expected);
-    check_csp0_eq("a → STOP □ b → STOP □ c → STOP", expected);
+    Environment env;
+    auto expected = env.external_choice(
+            env.prefix(Event("a"), env.stop()),
+            env.external_choice(env.prefix(Event("b"), env.stop()),
+                                env.prefix(Event("c"), env.stop())));
+    check_csp0_eq(&env, "a -> STOP [] b -> STOP [] c -> STOP", expected);
+    check_csp0_eq(&env, "a → STOP □ b → STOP □ c → STOP", expected);
 }
 
 TEST_CASE("parse: a → STOP ⫴ SKIP")
 {
-    auto expected = interleave(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("a->STOP|||SKIP", expected);
-    check_csp0_eq(" a->STOP|||SKIP", expected);
-    check_csp0_eq(" a ->STOP|||SKIP", expected);
-    check_csp0_eq(" a -> STOP|||SKIP", expected);
-    check_csp0_eq(" a -> STOP |||SKIP", expected);
-    check_csp0_eq(" a -> STOP ||| SKIP", expected);
-    check_csp0_eq(" a -> STOP ||| SKIP ", expected);
-    check_csp0_eq("a→STOP⫴SKIP", expected);
-    check_csp0_eq(" a→STOP⫴SKIP", expected);
-    check_csp0_eq(" a →STOP⫴SKIP", expected);
-    check_csp0_eq(" a → STOP⫴SKIP", expected);
-    check_csp0_eq(" a → STOP ⫴SKIP", expected);
-    check_csp0_eq(" a → STOP ⫴ SKIP", expected);
-    check_csp0_eq(" a → STOP ⫴ SKIP ", expected);
+    Environment env;
+    auto expected =
+            env.interleave(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "a->STOP|||SKIP", expected);
+    check_csp0_eq(&env, " a->STOP|||SKIP", expected);
+    check_csp0_eq(&env, " a ->STOP|||SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP|||SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP |||SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP ||| SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP ||| SKIP ", expected);
+    check_csp0_eq(&env, "a→STOP⫴SKIP", expected);
+    check_csp0_eq(&env, " a→STOP⫴SKIP", expected);
+    check_csp0_eq(&env, " a →STOP⫴SKIP", expected);
+    check_csp0_eq(&env, " a → STOP⫴SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⫴SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⫴ SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⫴ SKIP ", expected);
     // Fail to parse a bunch of invalid statements.
     // a is undefined
     check_csp0_invalid("a ⫴ STOP");
@@ -169,30 +173,34 @@ TEST_CASE("parse: a → STOP ⫴ SKIP")
 
 TEST_CASE("associativity: a → STOP ⫴ b → STOP ⫴ c → STOP")
 {
-    auto expected = interleave(
-            prefix(Event("a"), stop()),
-            interleave(prefix(Event("b"), stop()), prefix(Event("c"), stop())));
-    check_csp0_eq("a -> STOP ||| b -> STOP ||| c -> STOP", expected);
-    check_csp0_eq("a → STOP ⫴ b → STOP ⫴ c → STOP", expected);
+    Environment env;
+    auto expected =
+            env.interleave(env.prefix(Event("a"), env.stop()),
+                           env.interleave(env.prefix(Event("b"), env.stop()),
+                                          env.prefix(Event("c"), env.stop())));
+    check_csp0_eq(&env, "a -> STOP ||| b -> STOP ||| c -> STOP", expected);
+    check_csp0_eq(&env, "a → STOP ⫴ b → STOP ⫴ c → STOP", expected);
 }
 
 TEST_CASE("parse: a → STOP ⊓ SKIP")
 {
-    auto expected = internal_choice(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("a->STOP|~|SKIP", expected);
-    check_csp0_eq(" a->STOP|~|SKIP", expected);
-    check_csp0_eq(" a ->STOP|~|SKIP", expected);
-    check_csp0_eq(" a -> STOP|~|SKIP", expected);
-    check_csp0_eq(" a -> STOP |~|SKIP", expected);
-    check_csp0_eq(" a -> STOP |~| SKIP", expected);
-    check_csp0_eq(" a -> STOP |~| SKIP ", expected);
-    check_csp0_eq("a→STOP⊓SKIP", expected);
-    check_csp0_eq(" a→STOP⊓SKIP", expected);
-    check_csp0_eq(" a →STOP⊓SKIP", expected);
-    check_csp0_eq(" a → STOP⊓SKIP", expected);
-    check_csp0_eq(" a → STOP ⊓SKIP", expected);
-    check_csp0_eq(" a → STOP ⊓ SKIP", expected);
-    check_csp0_eq(" a → STOP ⊓ SKIP ", expected);
+    Environment env;
+    auto expected =
+            env.internal_choice(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "a->STOP|~|SKIP", expected);
+    check_csp0_eq(&env, " a->STOP|~|SKIP", expected);
+    check_csp0_eq(&env, " a ->STOP|~|SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP|~|SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP |~|SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP |~| SKIP", expected);
+    check_csp0_eq(&env, " a -> STOP |~| SKIP ", expected);
+    check_csp0_eq(&env, "a→STOP⊓SKIP", expected);
+    check_csp0_eq(&env, " a→STOP⊓SKIP", expected);
+    check_csp0_eq(&env, " a →STOP⊓SKIP", expected);
+    check_csp0_eq(&env, " a → STOP⊓SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⊓SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⊓ SKIP", expected);
+    check_csp0_eq(&env, " a → STOP ⊓ SKIP ", expected);
     // Fail to parse a bunch of invalid statements.
     // a is undefined
     check_csp0_invalid("a ⊓ STOP");
@@ -201,39 +209,42 @@ TEST_CASE("parse: a → STOP ⊓ SKIP")
 
 TEST_CASE("associativity: a → STOP ⊓ b → STOP ⊓ c → STOP")
 {
-    auto expected =
-            internal_choice(prefix(Event("a"), stop()),
-                            internal_choice(prefix(Event("b"), stop()),
-                                            prefix(Event("c"), stop())));
-    check_csp0_eq("a -> STOP |~| b -> STOP |~| c -> STOP", expected);
-    check_csp0_eq("a → STOP ⊓ b → STOP ⊓ c → STOP", expected);
+    Environment env;
+    auto expected = env.internal_choice(
+            env.prefix(Event("a"), env.stop()),
+            env.internal_choice(env.prefix(Event("b"), env.stop()),
+                                env.prefix(Event("c"), env.stop())));
+    check_csp0_eq(&env, "a -> STOP |~| b -> STOP |~| c -> STOP", expected);
+    check_csp0_eq(&env, "a → STOP ⊓ b → STOP ⊓ c → STOP", expected);
 }
 
 TEST_CASE("parse: (STOP)")
 {
-    auto expected = stop();
-    check_csp0_eq("(STOP)", expected);
-    check_csp0_eq(" (STOP)", expected);
-    check_csp0_eq(" ( STOP)", expected);
-    check_csp0_eq(" ( STOP )", expected);
-    check_csp0_eq(" ( STOP ) ", expected);
-    check_csp0_eq("((STOP))", expected);
-    check_csp0_eq("(((STOP)))", expected);
+    Environment env;
+    auto expected = env.stop();
+    check_csp0_eq(&env, "(STOP)", expected);
+    check_csp0_eq(&env, " (STOP)", expected);
+    check_csp0_eq(&env, " ( STOP)", expected);
+    check_csp0_eq(&env, " ( STOP )", expected);
+    check_csp0_eq(&env, " ( STOP ) ", expected);
+    check_csp0_eq(&env, "((STOP))", expected);
+    check_csp0_eq(&env, "(((STOP)))", expected);
 }
 
 TEST_CASE("parse: a → STOP")
 {
-    auto expected = prefix(Event("a"), stop());
-    check_csp0_eq("a->STOP", expected);
-    check_csp0_eq(" a->STOP", expected);
-    check_csp0_eq(" a ->STOP", expected);
-    check_csp0_eq(" a -> STOP", expected);
-    check_csp0_eq(" a -> STOP ", expected);
-    check_csp0_eq("a→STOP", expected);
-    check_csp0_eq(" a→STOP", expected);
-    check_csp0_eq(" a →STOP", expected);
-    check_csp0_eq(" a → STOP", expected);
-    check_csp0_eq(" a → STOP ", expected);
+    Environment env;
+    auto expected = env.prefix(Event("a"), env.stop());
+    check_csp0_eq(&env, "a->STOP", expected);
+    check_csp0_eq(&env, " a->STOP", expected);
+    check_csp0_eq(&env, " a ->STOP", expected);
+    check_csp0_eq(&env, " a -> STOP", expected);
+    check_csp0_eq(&env, " a -> STOP ", expected);
+    check_csp0_eq(&env, "a→STOP", expected);
+    check_csp0_eq(&env, " a→STOP", expected);
+    check_csp0_eq(&env, " a →STOP", expected);
+    check_csp0_eq(&env, " a → STOP", expected);
+    check_csp0_eq(&env, " a → STOP ", expected);
     // Fail to parse a bunch of invalid statements.
     // STOP isn't an event
     check_csp0_invalid("STOP → STOP");
@@ -245,33 +256,36 @@ TEST_CASE("parse: a → STOP")
 
 TEST_CASE("associativity: a → b → STOP")
 {
-    auto expected = prefix(Event("a"), prefix(Event("b"), stop()));
-    check_csp0_eq("a -> b -> STOP", expected);
-    check_csp0_eq("a → b → STOP", expected);
+    Environment env;
+    auto expected = env.prefix(Event("a"), env.prefix(Event("b"), env.stop()));
+    check_csp0_eq(&env, "a -> b -> STOP", expected);
+    check_csp0_eq(&env, "a → b → STOP", expected);
 }
 
 TEST_CASE("parse: □ {a → STOP, SKIP}")
 {
-    auto expected = external_choice(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("[]{a->STOP,SKIP}", expected);
-    check_csp0_eq(" []{a->STOP,SKIP}", expected);
-    check_csp0_eq(" [] {a->STOP,SKIP}", expected);
-    check_csp0_eq(" [] { a->STOP,SKIP}", expected);
-    check_csp0_eq(" [] { a ->STOP,SKIP}", expected);
-    check_csp0_eq(" [] { a -> STOP,SKIP}", expected);
-    check_csp0_eq(" [] { a -> STOP ,SKIP}", expected);
-    check_csp0_eq(" [] { a -> STOP , SKIP}", expected);
-    check_csp0_eq(" [] { a -> STOP , SKIP }", expected);
-    check_csp0_eq(" [] { a -> STOP , SKIP } ", expected);
-    check_csp0_eq("□{a→STOP,SKIP}", expected);
-    check_csp0_eq(" □{a→STOP,SKIP}", expected);
-    check_csp0_eq(" □ {a→STOP,SKIP}", expected);
-    check_csp0_eq(" □ { a→STOP,SKIP}", expected);
-    check_csp0_eq(" □ { a →STOP,SKIP}", expected);
-    check_csp0_eq(" □ { a → STOP,SKIP}", expected);
-    check_csp0_eq(" □ { a → STOP ,SKIP}", expected);
-    check_csp0_eq(" □ { a → STOP , SKIP}", expected);
-    check_csp0_eq(" □ { a → STOP , SKIP }", expected);
+    Environment env;
+    auto expected =
+            env.external_choice(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "[]{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " []{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " [] {a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " [] { a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " [] { a ->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " [] { a -> STOP,SKIP}", expected);
+    check_csp0_eq(&env, " [] { a -> STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " [] { a -> STOP , SKIP}", expected);
+    check_csp0_eq(&env, " [] { a -> STOP , SKIP }", expected);
+    check_csp0_eq(&env, " [] { a -> STOP , SKIP } ", expected);
+    check_csp0_eq(&env, "□{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □ {a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □ { a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □ { a →STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □ { a → STOP,SKIP}", expected);
+    check_csp0_eq(&env, " □ { a → STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " □ { a → STOP , SKIP}", expected);
+    check_csp0_eq(&env, " □ { a → STOP , SKIP }", expected);
     // missing `{`
     check_csp0_invalid("□");
     // missing process after `{`
@@ -288,26 +302,28 @@ TEST_CASE("parse: □ {a → STOP, SKIP}")
 
 TEST_CASE("parse: ⫴ {a → STOP, SKIP}")
 {
-    auto expected = interleave(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("|||{a->STOP,SKIP}", expected);
-    check_csp0_eq(" |||{a->STOP,SKIP}", expected);
-    check_csp0_eq(" ||| {a->STOP,SKIP}", expected);
-    check_csp0_eq(" ||| { a->STOP,SKIP}", expected);
-    check_csp0_eq(" ||| { a ->STOP,SKIP}", expected);
-    check_csp0_eq(" ||| { a -> STOP,SKIP}", expected);
-    check_csp0_eq(" ||| { a -> STOP ,SKIP}", expected);
-    check_csp0_eq(" ||| { a -> STOP , SKIP}", expected);
-    check_csp0_eq(" ||| { a -> STOP , SKIP }", expected);
-    check_csp0_eq(" ||| { a -> STOP , SKIP } ", expected);
-    check_csp0_eq("⫴{a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴{a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴ {a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴ { a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴ { a →STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴ { a → STOP,SKIP}", expected);
-    check_csp0_eq(" ⫴ { a → STOP ,SKIP}", expected);
-    check_csp0_eq(" ⫴ { a → STOP , SKIP}", expected);
-    check_csp0_eq(" ⫴ { a → STOP , SKIP }", expected);
+    Environment env;
+    auto expected =
+            env.interleave(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "|||{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |||{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ||| {a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a ->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a -> STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a -> STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a -> STOP , SKIP}", expected);
+    check_csp0_eq(&env, " ||| { a -> STOP , SKIP }", expected);
+    check_csp0_eq(&env, " ||| { a -> STOP , SKIP } ", expected);
+    check_csp0_eq(&env, "⫴{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ {a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a →STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a → STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a → STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a → STOP , SKIP}", expected);
+    check_csp0_eq(&env, " ⫴ { a → STOP , SKIP }", expected);
     // missing `{`
     check_csp0_invalid("⫴");
     // missing process after `{`
@@ -324,26 +340,28 @@ TEST_CASE("parse: ⫴ {a → STOP, SKIP}")
 
 TEST_CASE("parse: ⊓ {a → STOP, SKIP}")
 {
-    auto expected = internal_choice(prefix(Event("a"), stop()), skip());
-    check_csp0_eq("|~|{a->STOP,SKIP}", expected);
-    check_csp0_eq(" |~|{a->STOP,SKIP}", expected);
-    check_csp0_eq(" |~| {a->STOP,SKIP}", expected);
-    check_csp0_eq(" |~| { a->STOP,SKIP}", expected);
-    check_csp0_eq(" |~| { a ->STOP,SKIP}", expected);
-    check_csp0_eq(" |~| { a -> STOP,SKIP}", expected);
-    check_csp0_eq(" |~| { a -> STOP ,SKIP}", expected);
-    check_csp0_eq(" |~| { a -> STOP , SKIP}", expected);
-    check_csp0_eq(" |~| { a -> STOP , SKIP }", expected);
-    check_csp0_eq(" |~| { a -> STOP , SKIP } ", expected);
-    check_csp0_eq("⊓{a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓{a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓ {a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓ { a→STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓ { a →STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓ { a → STOP,SKIP}", expected);
-    check_csp0_eq(" ⊓ { a → STOP ,SKIP}", expected);
-    check_csp0_eq(" ⊓ { a → STOP , SKIP}", expected);
-    check_csp0_eq(" ⊓ { a → STOP , SKIP }", expected);
+    Environment env;
+    auto expected =
+            env.internal_choice(env.prefix(Event("a"), env.stop()), env.skip());
+    check_csp0_eq(&env, "|~|{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~|{a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~| {a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a ->STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a -> STOP,SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a -> STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a -> STOP , SKIP}", expected);
+    check_csp0_eq(&env, " |~| { a -> STOP , SKIP }", expected);
+    check_csp0_eq(&env, " |~| { a -> STOP , SKIP } ", expected);
+    check_csp0_eq(&env, "⊓{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓{a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ {a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a→STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a →STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a → STOP,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a → STOP ,SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a → STOP , SKIP}", expected);
+    check_csp0_eq(&env, " ⊓ { a → STOP , SKIP }", expected);
     // missing `{`
     check_csp0_invalid("⊓");
     // missing process after `{`
@@ -360,14 +378,16 @@ TEST_CASE("parse: ⊓ {a → STOP, SKIP}")
 
 TEST_CASE("parse: a → SKIP ; STOP")
 {
-    auto expected = sequential_composition(prefix(Event("a"), skip()), stop());
-    check_csp0_eq("a→SKIP;STOP", expected);
-    check_csp0_eq(" a→SKIP;STOP", expected);
-    check_csp0_eq(" a →SKIP;STOP", expected);
-    check_csp0_eq(" a → SKIP;STOP", expected);
-    check_csp0_eq(" a → SKIP ;STOP", expected);
-    check_csp0_eq(" a → SKIP ; STOP", expected);
-    check_csp0_eq(" a → SKIP ; STOP ", expected);
+    Environment env;
+    auto expected = env.sequential_composition(
+            env.prefix(Event("a"), env.skip()), env.stop());
+    check_csp0_eq(&env, "a→SKIP;STOP", expected);
+    check_csp0_eq(&env, " a→SKIP;STOP", expected);
+    check_csp0_eq(&env, " a →SKIP;STOP", expected);
+    check_csp0_eq(&env, " a → SKIP;STOP", expected);
+    check_csp0_eq(&env, " a → SKIP ;STOP", expected);
+    check_csp0_eq(&env, " a → SKIP ; STOP", expected);
+    check_csp0_eq(&env, " a → SKIP ; STOP ", expected);
     // Fail to parse a bunch of invalid statements.
     // a is undefined
     check_csp0_invalid("a ; STOP");
@@ -380,30 +400,34 @@ TEST_CASE("parse: a → SKIP ; STOP")
 
 TEST_CASE("associativity: a → SKIP ; b → SKIP ; c → SKIP")
 {
-    auto expected = sequential_composition(
-            prefix(Event("a"), skip()),
-            sequential_composition(prefix(Event("b"), skip()),
-                                   prefix(Event("c"), skip())));
-    check_csp0_eq("a → SKIP ; b → SKIP ; c → SKIP", expected);
+    Environment env;
+    auto expected = env.sequential_composition(
+            env.prefix(Event("a"), env.skip()),
+            env.sequential_composition(env.prefix(Event("b"), env.skip()),
+                                       env.prefix(Event("c"), env.skip())));
+    check_csp0_eq(&env, "a → SKIP ; b → SKIP ; c → SKIP", expected);
 }
 
 TEST_CASE("precedence: a → STOP □ b → STOP ⊓ c → STOP")
 {
-    auto expected = internal_choice(external_choice(prefix(Event("a"), stop()),
-                                                    prefix(Event("b"), stop())),
-                                    prefix(Event("c"), stop()));
+    Environment env;
+    auto expected = env.internal_choice(
+            env.external_choice(env.prefix(Event("a"), env.stop()),
+                                env.prefix(Event("b"), env.stop())),
+            env.prefix(Event("c"), env.stop()));
     // Expected result is
     // (a → STOP □ b → STOP) ⊓ (c → STOP)
-    check_csp0_eq("a → STOP □ b → STOP ⊓ c → STOP", expected);
+    check_csp0_eq(&env, "a → STOP □ b → STOP ⊓ c → STOP", expected);
 }
 
 TEST_CASE("precedence: a → STOP □ b → SKIP ; c → STOP")
 {
-    auto expected =
-            external_choice(prefix(Event("a"), stop()),
-                            sequential_composition(prefix(Event("b"), skip()),
-                                                   prefix(Event("c"), stop())));
+    Environment env;
+    auto expected = env.external_choice(
+            env.prefix(Event("a"), env.stop()),
+            env.sequential_composition(env.prefix(Event("b"), env.skip()),
+                                       env.prefix(Event("c"), env.stop())));
     // Expected result is
     // a → STOP □ (b → SKIP ; c → STOP)
-    check_csp0_eq("a → STOP □ b → SKIP ; c → STOP", expected);
+    check_csp0_eq(&env, "a → STOP □ b → SKIP ; c → STOP", expected);
 }
