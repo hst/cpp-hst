@@ -77,8 +77,8 @@ ExternalChoice::afters(Event initial, Process::Set* out)
     // afters(□ Ps, a ≠ τ) = ⋃ { P' | P ∈ Ps, P' ∈ afters(P, a) }       [rule 2]
     if (initial == Event::tau()) {
         // We're going to build up a lot of new Ps' sets that all have the same
-        // basic structure: Ps' = Ps ∖ {P} ∪ {P'} Each Ps' starts with Ps, so go
-        // ahead and add that into our Ps' set once.
+        // basic structure: Ps' = Ps ∖ {P} ∪ {P'}.  Each Ps' starts with Ps, so
+        // go ahead and add that into our Ps' set once.
         Process::Set ps_prime(ps_);
         for (const auto& p : ps_) {
             // Set Ps' to Ps ∖ {P}
@@ -86,7 +86,6 @@ ExternalChoice::afters(Event initial, Process::Set* out)
             // Grab afters(P, τ)
             Process::Set p_afters;
             p->afters(initial, &p_afters);
-            // For all P' ∈ afters(P, τ)
             for (const auto& p_prime : p_afters) {
                 // ps_prime currently contains (Ps ∖ {P}).  Add P' to produce
                 // (Ps ∖ {P} ∪ {P'})
@@ -126,7 +125,7 @@ ExternalChoice::operator==(const Process& other_) const
 void
 ExternalChoice::print(std::ostream& out) const
 {
-    print_subprocess_set(out, ps_, "□");
+    print_subprocesses(out, ps_, "□");
 }
 
 }  // namespace hst
