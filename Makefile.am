@@ -21,6 +21,7 @@ libhst_la_SOURCES = \
 	src/hst/event.cc \
 	src/hst/external-choice.cc \
 	src/hst/hash.h \
+	src/hst/interleave.cc \
 	src/hst/internal-choice.cc \
 	src/hst/operators.h \
 	src/hst/prefix.cc \

@@ -298,6 +298,30 @@ static bool
 parse_process(ParseState* state, std::shared_ptr<Process>* out);
 
 static bool
+parse_process_bag(ParseState* parent, Process::Bag* out)
+{
+    ParseState state = parent->attempt("process bag");
+    std::shared_ptr<Process> process;
+
+    return_if_error(require_token(&state, "{"));
+    skip_whitespace(&state);
+    if (parse_process(&state, &process)) {
+        out->insert(std::move(process));
+        skip_whitespace(&state);
+        while (require_token(&state, ",")) {
+            skip_whitespace(&state);
+            if (unlikely(!parse_process(&state, &process))) {
+                return state.parse_error("Expected process after `,`");
+            }
+            out->insert(std::move(process));
+            skip_whitespace(&state);
+        }
+    }
+    return_if_error(require_token(&state, "}"));
+    return true;
+}
+
+static bool
 parse_process_set(ParseState* parent, Process::Set* out)
 {
     ParseState state = parent->attempt("process set");
@@ -472,7 +496,33 @@ parse_process7(ParseState* parent, std::shared_ptr<Process>* out)
     return true;
 }
 
-#define parse_process10 parse_process7  // NIY
+#define parse_process8 parse_process7  // NIY
+
+static bool
+parse_process9(ParseState* parent, std::shared_ptr<Process>* out)
+{
+    std::shared_ptr<Process> lhs;
+    // process9 = process8 (⊓ process9)?
+    return_if_error(parse_process8(parent, &lhs));
+
+    ParseState state = parent->attempt("process9");
+    skip_whitespace(&state);
+    if (!require_token(&state, "|||") && !require_token(&state, "⫴")) {
+        *out = std::move(lhs);
+        return true;
+    }
+    skip_whitespace(&state);
+    std::shared_ptr<Process> rhs;
+    if (!parse_process9(&state, &rhs) != 0) {
+        // Expected process after ⫴
+        return state.parse_error("Expected process after ⫴");
+    }
+
+    *out = interleave(Process::Bag{std::move(lhs), std::move(rhs)});
+    return true;
+}
+
+#define parse_process10 parse_process9  // NIY
 
 static bool
 parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
@@ -495,6 +545,15 @@ parse_process11(ParseState* parent, std::shared_ptr<Process>* out)
         Process::Set processes;
         return_if_error(parse_process_set(&state, &processes));
         *out = internal_choice(std::move(processes));
+        return true;
+    }
+
+    // ⫴ {process}
+    if (require_token(&state, "|||") || require_token(&state, "⫴")) {
+        skip_whitespace(&state);
+        Process::Bag processes;
+        return_if_error(parse_process_bag(&state, &processes));
+        *out = interleave(std::move(processes));
         return true;
     }
 

@@ -144,6 +144,38 @@ TEST_CASE("associativity: a → STOP □ b → STOP □ c → STOP")
     check_csp0_eq("a → STOP □ b → STOP □ c → STOP", expected);
 }
 
+TEST_CASE("parse: a → STOP ⫴ SKIP")
+{
+    auto expected = interleave(prefix(Event("a"), stop()), skip());
+    check_csp0_eq("a->STOP|||SKIP", expected);
+    check_csp0_eq(" a->STOP|||SKIP", expected);
+    check_csp0_eq(" a ->STOP|||SKIP", expected);
+    check_csp0_eq(" a -> STOP|||SKIP", expected);
+    check_csp0_eq(" a -> STOP |||SKIP", expected);
+    check_csp0_eq(" a -> STOP ||| SKIP", expected);
+    check_csp0_eq(" a -> STOP ||| SKIP ", expected);
+    check_csp0_eq("a→STOP⫴SKIP", expected);
+    check_csp0_eq(" a→STOP⫴SKIP", expected);
+    check_csp0_eq(" a →STOP⫴SKIP", expected);
+    check_csp0_eq(" a → STOP⫴SKIP", expected);
+    check_csp0_eq(" a → STOP ⫴SKIP", expected);
+    check_csp0_eq(" a → STOP ⫴ SKIP", expected);
+    check_csp0_eq(" a → STOP ⫴ SKIP ", expected);
+    // Fail to parse a bunch of invalid statements.
+    // a is undefined
+    check_csp0_invalid("a ⫴ STOP");
+    check_csp0_invalid("STOP ⫴ a");
+}
+
+TEST_CASE("associativity: a → STOP ⫴ b → STOP ⫴ c → STOP")
+{
+    auto expected = interleave(
+            prefix(Event("a"), stop()),
+            interleave(prefix(Event("b"), stop()), prefix(Event("c"), stop())));
+    check_csp0_eq("a -> STOP ||| b -> STOP ||| c -> STOP", expected);
+    check_csp0_eq("a → STOP ⫴ b → STOP ⫴ c → STOP", expected);
+}
+
 TEST_CASE("parse: a → STOP ⊓ SKIP")
 {
     auto expected = internal_choice(prefix(Event("a"), stop()), skip());
@@ -252,6 +284,42 @@ TEST_CASE("parse: □ {a → STOP, SKIP}")
     // a is undefined
     check_csp0_invalid("□ { a, STOP }");
     check_csp0_invalid("□ { STOP, a }");
+}
+
+TEST_CASE("parse: ⫴ {a → STOP, SKIP}")
+{
+    auto expected = interleave(prefix(Event("a"), stop()), skip());
+    check_csp0_eq("|||{a->STOP,SKIP}", expected);
+    check_csp0_eq(" |||{a->STOP,SKIP}", expected);
+    check_csp0_eq(" ||| {a->STOP,SKIP}", expected);
+    check_csp0_eq(" ||| { a->STOP,SKIP}", expected);
+    check_csp0_eq(" ||| { a ->STOP,SKIP}", expected);
+    check_csp0_eq(" ||| { a -> STOP,SKIP}", expected);
+    check_csp0_eq(" ||| { a -> STOP ,SKIP}", expected);
+    check_csp0_eq(" ||| { a -> STOP , SKIP}", expected);
+    check_csp0_eq(" ||| { a -> STOP , SKIP }", expected);
+    check_csp0_eq(" ||| { a -> STOP , SKIP } ", expected);
+    check_csp0_eq("⫴{a→STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴{a→STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴ {a→STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴ { a→STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴ { a →STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴ { a → STOP,SKIP}", expected);
+    check_csp0_eq(" ⫴ { a → STOP ,SKIP}", expected);
+    check_csp0_eq(" ⫴ { a → STOP , SKIP}", expected);
+    check_csp0_eq(" ⫴ { a → STOP , SKIP }", expected);
+    // missing `{`
+    check_csp0_invalid("⫴");
+    // missing process after `{`
+    check_csp0_invalid("⫴ {");
+    // missing `}`
+    check_csp0_invalid("⫴ { STOP");
+    // missing process after `,`
+    check_csp0_invalid("⫴ { STOP,");
+    check_csp0_invalid("⫴ { STOP, }");
+    // a is undefined
+    check_csp0_invalid("⫴ { a, STOP }");
+    check_csp0_invalid("⫴ { STOP, a }");
 }
 
 TEST_CASE("parse: ⊓ {a → STOP, SKIP}")

@@ -8,10 +8,13 @@
 #ifndef HST_PROCESS_H
 #define HST_PROCESS_H
 
+#include <algorithm>
 #include <memory>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "hst/event.h"
 
@@ -35,6 +38,8 @@ class Process {
     };
 
   public:
+    using Bag = std::unordered_multiset<std::shared_ptr<Process>, deref_hash,
+                                        deref_key_equal>;
     using Set = std::unordered_set<std::shared_ptr<Process>, deref_hash,
                                    deref_key_equal>;
 
@@ -69,8 +74,9 @@ class Process {
         }
     }
 
-    void print_subprocess_set(std::ostream& out, const Process::Set& processes,
-                              const std::string& binary_op) const;
+    template <typename T>
+    void print_subprocesses(std::ostream& out, const T& processes,
+                            const std::string& binary_op) const;
 };
 
 inline std::ostream&
@@ -79,6 +85,14 @@ operator<<(std::ostream& out, const Process& process)
     process.print(out);
     return out;
 }
+
+std::ostream& operator<<(std::ostream& out, const Process::Bag& processes);
+
+bool
+operator==(const Process::Bag& lhs, const Process::Bag& rhs);
+
+std::size_t
+hash(const Process::Bag& set);
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 
@@ -102,6 +116,15 @@ struct hash<hst::Process>
 };
 
 template <>
+struct hash<hst::Process::Bag>
+{
+    std::size_t operator()(const hst::Process::Bag& set) const
+    {
+        return hst::hash(set);
+    }
+};
+
+template <>
 struct hash<hst::Process::Set>
 {
     std::size_t operator()(const hst::Process::Set& set) const
@@ -111,5 +134,56 @@ struct hash<hst::Process::Set>
 };
 
 }  // namespace std
+
+//------------------------------------------------------------------------------
+// Internals!
+
+namespace hst {
+
+template <typename T>
+void
+Process::print_subprocesses(std::ostream& out, const T& processes,
+                            const std::string& binary_op) const
+{
+    // We want reproducible output, so we sort the names of the processes in the
+    // set before rendering them into the stream.
+    std::vector<std::pair<std::string, unsigned int>> process_names;
+    for (const auto& process : processes) {
+        std::stringstream name;
+        name << *process;
+        process_names.emplace_back(
+                std::make_pair(name.str(), process->precedence()));
+    }
+    std::sort(process_names.begin(), process_names.end());
+
+    if (process_names.size() == 2) {
+        if (precedence() < process_names[0].second) {
+            out << "(" << process_names[0].first << ")";
+        } else {
+            out << process_names[0].first;
+        }
+        out << " " << binary_op << " ";
+        if (precedence() < process_names[1].second) {
+            out << "(" << process_names[1].first << ")";
+        } else {
+            out << process_names[1].first;
+        }
+        return;
+    }
+
+    bool first = true;
+    out << binary_op << " {";
+    for (const auto& name_and_precedence : process_names) {
+        if (first) {
+            first = false;
+        } else {
+            out << ", ";
+        }
+        out << name_and_precedence.first;
+    }
+    out << "}";
+}
+
+}  // namespace hst
 
 #endif  // HST_PROCESS_H

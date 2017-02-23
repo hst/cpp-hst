@@ -22,6 +22,12 @@ std::shared_ptr<Process>
 external_choice(Process::Set ps);
 
 std::shared_ptr<Process>
+interleave(std::shared_ptr<Process> p, std::shared_ptr<Process> q);
+
+std::shared_ptr<Process>
+interleave(Process::Bag ps);
+
+std::shared_ptr<Process>
 internal_choice(std::shared_ptr<Process> p, std::shared_ptr<Process> q);
 
 std::shared_ptr<Process>

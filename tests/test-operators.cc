@@ -153,6 +153,80 @@ TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
     check_afters(p, "τ", {});
 }
 
+TEST_CASE_GROUP("interleaving");
+
+TEST_CASE("STOP ⫴ STOP")
+{
+    auto p = "STOP ⫴ STOP";
+    check_name(p, "STOP ⫴ STOP");
+    check_initials(p, {"✔"});
+    check_afters(p, "✔", {"STOP"});
+    check_afters(p, "a", {});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
+{
+    auto p = "(a → STOP) ⫴ (b → STOP ⊓ c → STOP)";
+    check_name(p, "a → STOP ⫴ b → STOP ⊓ c → STOP");
+    check_initials(p, {"a", "τ"});
+    check_afters(p, "a", {"STOP ⫴ (b → STOP ⊓ c → STOP)"});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {"a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP"});
+}
+
+TEST_CASE("a → STOP ⫴ a → STOP")
+{
+    auto p = "a → STOP ⫴ a → STOP";
+    check_name(p, "a → STOP ⫴ a → STOP");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"STOP ⫴ a → STOP"});
+    check_afters(p, "b", {});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("a → STOP ⫴ b → STOP")
+{
+    auto p = "a → STOP ⫴ b → STOP";
+    check_name(p, "a → STOP ⫴ b → STOP");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"STOP ⫴ b → STOP"});
+    check_afters(p, "b", {"a → STOP ⫴ STOP"});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("a → SKIP ⫴ b → SKIP")
+{
+    auto p = "a → SKIP ⫴ b → SKIP";
+    check_name(p, "a → SKIP ⫴ b → SKIP");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"SKIP ⫴ b → SKIP"});
+    check_afters(p, "b", {"a → SKIP ⫴ SKIP"});
+    check_afters(p, "τ", {});
+    check_afters(p, "✔", {});
+}
+
+TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
+{
+    auto p = "(a → SKIP ⫴ b → SKIP) ; c → STOP";
+    check_name(p, "(a → SKIP ⫴ b → SKIP) ; c → STOP");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"(SKIP ⫴ b → SKIP) ; c → STOP"});
+    check_afters(p, "b", {"(a → SKIP ⫴ SKIP) ; c → STOP"});
+    check_afters(p, "τ", {});
+}
+
+TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
+{
+    auto p = "⫴ {a → STOP, b → STOP, c → STOP}";
+    check_name(p, "⫴ {a → STOP, b → STOP, c → STOP}");
+    check_initials(p, {"a", "b", "c"});
+    check_afters(p, "a", {"⫴ {STOP, b → STOP, c → STOP}"});
+    check_afters(p, "b", {"⫴ {a → STOP, STOP, c → STOP}"});
+    check_afters(p, "c", {"⫴ {a → STOP, b → STOP, STOP}"});
+    check_afters(p, "τ", {});
+}
+
 TEST_CASE_GROUP("internal choice");
 
 TEST_CASE("STOP ⊓ STOP")
