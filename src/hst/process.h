@@ -20,28 +20,13 @@
 
 namespace hst {
 
+//------------------------------------------------------------------------------
+// Process interfaces
+
 class Process {
-  private:
-    struct deref_hash {
-        std::size_t operator()(const std::shared_ptr<Process>& ptr) const
-        {
-            return ptr->hash();
-        }
-    };
-
-    struct deref_key_equal {
-        bool operator()(const std::shared_ptr<Process>& lhs,
-                        const std::shared_ptr<Process>& rhs) const
-        {
-            return *lhs == *rhs;
-        }
-    };
-
   public:
-    using Bag = std::unordered_multiset<std::shared_ptr<Process>, deref_hash,
-                                        deref_key_equal>;
-    using Set = std::unordered_set<std::shared_ptr<Process>, deref_hash,
-                                   deref_key_equal>;
+    using Bag = std::unordered_multiset<Process*>;
+    using Set = std::unordered_set<Process*>;
 
     virtual ~Process() = default;
 

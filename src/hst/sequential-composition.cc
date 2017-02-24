@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/operators.h"
+#include "hst/environment.h"
 
 #include <memory>
 #include <ostream>
@@ -16,68 +16,12 @@
 
 namespace hst {
 
-class Skip : public Process {
-  public:
-    Skip() = default;
-
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
-
-    std::size_t hash() const override;
-    bool operator==(const Process& other) const override;
-    unsigned int precedence() const override { return 1; }
-    void print(std::ostream& out) const override;
-};
-
-std::shared_ptr<Process>
-skip()
-{
-    static std::shared_ptr<Process> stop = std::make_shared<Skip>();
-    return stop;
-}
-
-void
-Skip::initials(Event::Set* out)
-{
-    out->insert(Event::tick());
-}
-
-void
-Skip::afters(Event initial, Process::Set* out)
-{
-    if (initial == Event::tick()) {
-        out->insert(stop());
-    }
-}
-
-std::size_t
-Skip::hash() const
-{
-    static hash_scope skip;
-    return hasher(skip).value();
-}
-
-bool
-Skip::operator==(const Process& other_) const
-{
-    const Skip* other = dynamic_cast<const Skip*>(&other_);
-    if (other == nullptr) {
-        return false;
-    }
-    return true;
-}
-
-void
-Skip::print(std::ostream& out) const
-{
-    out << "SKIP";
-}
+namespace {
 
 class SequentialComposition : public Process {
   public:
-    SequentialComposition(std::shared_ptr<Process> p,
-                          std::shared_ptr<Process> q)
-        : p_(std::move(p)), q_(std::move(q))
+    SequentialComposition(Environment* env, Process* p, Process* q)
+        : env_(env), p_(p), q_(q)
     {
     }
 
@@ -90,14 +34,18 @@ class SequentialComposition : public Process {
     void print(std::ostream& out) const override;
 
   private:
-    std::shared_ptr<Process> p_;
-    std::shared_ptr<Process> q_;
+    Environment* env_;
+    Process* p_;
+    Process* q_;
 };
 
-std::shared_ptr<Process>
-sequential_composition(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+}  // namespace
+
+Process*
+Environment::sequential_composition(Process* p, Process* q)
 {
-    return std::make_shared<SequentialComposition>(std::move(p), std::move(q));
+    return register_process(
+            std::unique_ptr<Process>(new SequentialComposition(this, p, q)));
 }
 
 // Operational semantics for P ; Q
@@ -146,7 +94,7 @@ SequentialComposition::afters(Event initial, Process::Set* out)
         Process::Set afters;
         p_->afters(initial, &afters);
         for (const auto& p_prime : afters) {
-            out->insert(sequential_composition(p_prime, q_));
+            out->insert(env_->sequential_composition(p_prime, q_));
         }
     }
 

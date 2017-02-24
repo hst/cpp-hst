@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "hst/operators.h"
+#include "hst/environment.h"
 
 #include <memory>
 #include <ostream>
@@ -15,6 +15,8 @@
 #include "hst/process.h"
 
 namespace hst {
+
+namespace {
 
 class InternalChoice : public Process {
   public:
@@ -31,17 +33,19 @@ class InternalChoice : public Process {
     Process::Set ps_;
 };
 
-std::shared_ptr<Process>
-internal_choice(Process::Set ps)
+}  // namespace
+
+Process*
+Environment::internal_choice(Process::Set ps)
 {
-    return std::make_shared<InternalChoice>(ps);
+    return register_process(
+            std::unique_ptr<Process>(new InternalChoice(std::move(ps))));
 }
 
-std::shared_ptr<Process>
-internal_choice(std::shared_ptr<Process> p, std::shared_ptr<Process> q)
+Process*
+Environment::internal_choice(Process* p, Process* q)
 {
-    return std::make_shared<InternalChoice>(
-            Process::Set{std::move(p), std::move(q)});
+    return internal_choice(Process::Set{p, q});
 }
 
 // Operational semantics for ⊓ Ps
