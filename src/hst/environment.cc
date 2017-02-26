@@ -15,9 +15,9 @@ namespace {
 
 class Skip : public Process {
   public:
-    explicit Skip(Process* stop) : stop_(stop) {}
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    explicit Skip(const Process* stop) : stop_(stop) {}
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -25,19 +25,19 @@ class Skip : public Process {
     void print(std::ostream& out) const override;
 
   private:
-    Process* stop_;
+    const Process* stop_;
 };
 
 }  // namespace
 
 void
-Skip::initials(Event::Set* out)
+Skip::initials(Event::Set* out) const
 {
     out->insert(Event::tick());
 }
 
 void
-Skip::afters(Event initial, Process::Set* out)
+Skip::afters(Event initial, Process::Set* out) const
 {
     if (initial == Event::tick()) {
         out->insert(stop_);
@@ -73,8 +73,8 @@ class Stop : public Process {
   public:
     Stop() = default;
 
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -85,12 +85,12 @@ class Stop : public Process {
 }  // namespace
 
 void
-Stop::initials(Event::Set* out)
+Stop::initials(Event::Set* out) const
 {
 }
 
 void
-Stop::afters(Event initial, Process::Set* out)
+Stop::afters(Event initial, Process::Set* out) const
 {
 }
 
@@ -123,7 +123,7 @@ Environment::Environment()
     skip_ = register_process(std::unique_ptr<Process>(new Skip(stop_)));
 }
 
-Process*
+const Process*
 Environment::register_process(std::unique_ptr<Process> process)
 {
     auto result = registry_.insert(std::move(process));

@@ -20,13 +20,13 @@ namespace {
 
 class SequentialComposition : public Process {
   public:
-    SequentialComposition(Environment* env, Process* p, Process* q)
+    SequentialComposition(Environment* env, const Process* p, const Process* q)
         : env_(env), p_(p), q_(q)
     {
     }
 
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -35,14 +35,14 @@ class SequentialComposition : public Process {
 
   private:
     Environment* env_;
-    Process* p_;
-    Process* q_;
+    const Process* p_;
+    const Process* q_;
 };
 
 }  // namespace
 
-Process*
-Environment::sequential_composition(Process* p, Process* q)
+const Process*
+Environment::sequential_composition(const Process* p, const Process* q)
 {
     return register_process(
             std::unique_ptr<Process>(new SequentialComposition(this, p, q)));
@@ -59,7 +59,7 @@ Environment::sequential_composition(Process* p, Process* q)
 //       P;Q -τ→ Q
 
 void
-SequentialComposition::initials(std::set<Event>* out)
+SequentialComposition::initials(std::set<Event>* out) const
 {
     // 1) P;Q can perform all of the same events as P, except for ✔.
     // 2) If P can perform ✔, then P;Q can perform τ.
@@ -73,7 +73,7 @@ SequentialComposition::initials(std::set<Event>* out)
 }
 
 void
-SequentialComposition::afters(Event initial, Process::Set* out)
+SequentialComposition::afters(Event initial, Process::Set* out) const
 {
     // afters(P;Q a ≠ ✔) = afters(P, a)                                 [rule 1]
     // afters(P;Q, τ) = Q  if ✔ ∈ initials(P)                           [rule 2]
@@ -93,7 +93,7 @@ SequentialComposition::afters(Event initial, Process::Set* out)
     {
         Process::Set afters;
         p_->afters(initial, &afters);
-        for (const auto& p_prime : afters) {
+        for (const Process* p_prime : afters) {
             out->insert(env_->sequential_composition(p_prime, q_));
         }
     }

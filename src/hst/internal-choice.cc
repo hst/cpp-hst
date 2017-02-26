@@ -21,8 +21,8 @@ namespace {
 class InternalChoice : public Process {
   public:
     explicit InternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -35,15 +35,15 @@ class InternalChoice : public Process {
 
 }  // namespace
 
-Process*
+const Process*
 Environment::internal_choice(Process::Set ps)
 {
     return register_process(
             std::unique_ptr<Process>(new InternalChoice(std::move(ps))));
 }
 
-Process*
-Environment::internal_choice(Process* p, Process* q)
+const Process*
+Environment::internal_choice(const Process* p, const Process* q)
 {
     return internal_choice(Process::Set{p, q});
 }
@@ -54,14 +54,14 @@ Environment::internal_choice(Process* p, Process* q)
 //     ⊓ Ps -τ→ P
 
 void
-InternalChoice::initials(Event::Set* out)
+InternalChoice::initials(Event::Set* out) const
 {
     // initials(⊓ Ps) = {τ}
     out->insert(Event::tau());
 }
 
 void
-InternalChoice::afters(Event initial, Process::Set* out)
+InternalChoice::afters(Event initial, Process::Set* out) const
 {
     // afters(⊓ Ps, τ) = Ps
     if (initial == Event::tau()) {

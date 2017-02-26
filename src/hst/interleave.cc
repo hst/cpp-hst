@@ -24,8 +24,8 @@ class Interleave : public Process {
     {
     }
 
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -33,9 +33,9 @@ class Interleave : public Process {
     void print(std::ostream& out) const override;
 
   private:
-    void normal_afters(Event initial, Process::Set* out);
-    void tau_afters(Event initial, Process::Set* out);
-    void tick_afters(Event initial, Process::Set* out);
+    void normal_afters(Event initial, Process::Set* out) const;
+    void tau_afters(Event initial, Process::Set* out) const;
+    void tick_afters(Event initial, Process::Set* out) const;
 
     Environment* env_;
     Process::Bag ps_;
@@ -43,15 +43,15 @@ class Interleave : public Process {
 
 }  // namespace
 
-Process*
+const Process*
 Environment::interleave(Process::Bag ps)
 {
     return register_process(
             std::unique_ptr<Process>(new Interleave(this, std::move(ps))));
 }
 
-Process*
-Environment::interleave(Process* p, Process* q)
+const Process*
+Environment::interleave(const Process* p, const Process* q)
 {
     return interleave(Process::Bag{p, q});
 }
@@ -74,7 +74,7 @@ Environment::interleave(Process* p, Process* q)
 //       ⫴ {STOP} -✔→ STOP
 
 void
-Interleave::initials(Event::Set* out)
+Interleave::initials(Event::Set* out) const
 {
     // initials(⫴ Ps) = ⋃ { initials(P) ∩ {τ} | P ∈ Ps }                [rule 1]
     //                ∪ ⋃ { initials(P) ∖ {τ,✔} | P ∈ Ps }              [rule 2]
@@ -82,7 +82,7 @@ Interleave::initials(Event::Set* out)
     //                ∪ (Ps = {STOP}? {✔}: {})                          [rule 4]
 
     // Rules 1 and 2
-    for (const auto& process : ps_) {
+    for (const Process* process : ps_) {
         process->initials(out);
     }
     // Rule 3
@@ -96,7 +96,7 @@ Interleave::initials(Event::Set* out)
 }
 
 void
-Interleave::normal_afters(Event initial, Process::Set* out)
+Interleave::normal_afters(Event initial, Process::Set* out) const
 {
     // afters(⫴ Ps, a ∉ {τ,✔}) = ⋃ { ⫴ Ps ∖ {P} ∪ {P'} |
     //                                  P ∈ Ps, P' ∈ afters(P, a) }     [rule 2]
@@ -105,13 +105,13 @@ Interleave::normal_afters(Event initial, Process::Set* out)
     // basic structure: Ps' = Ps ∖ {P} ∪ {P'}.  Each Ps' starts with Ps, so go
     // ahead and add that to our Ps' set once.
     Process::Bag ps_prime(ps_);
-    for (const auto& p : ps_) {
+    for (const Process* p : ps_) {
         // Set Ps' to Ps ∖ {P}
         ps_prime.erase(ps_prime.find(p));
         // Grab afters(P, a)
         Process::Set p_afters;
         p->afters(initial, &p_afters);
-        for (const auto& p_prime : p_afters) {
+        for (const Process* p_prime : p_afters) {
             // ps_prime currently contains Ps.  Add P' and remove P to produce
             // (Ps ∖ {P} ∪ {P'})
             ps_prime.insert(p_prime);
@@ -126,7 +126,7 @@ Interleave::normal_afters(Event initial, Process::Set* out)
 }
 
 void
-Interleave::tau_afters(Event initial, Process::Set* out)
+Interleave::tau_afters(Event initial, Process::Set* out) const
 {
     // afters(⫴ Ps, τ) = ⋃ { ⫴ Ps ∖ {P} ∪ {P'} | P ∈ Ps, P' ∈ afters(P, τ) }
     //                                                                  [rule 1]
@@ -140,7 +140,7 @@ Interleave::tau_afters(Event initial, Process::Set* out)
     // ahead and add that to our Ps' set once.
     Process::Bag ps_prime(ps_);
     // Find each P ∈ Ps where ✔ ∈ initials(P).
-    for (const auto& p : ps_) {
+    for (const Process* p : ps_) {
         Event::Set initials;
         p->initials(&initials);
         if (initials.find(Event::tick()) != initials.end()) {
@@ -156,10 +156,10 @@ Interleave::tau_afters(Event initial, Process::Set* out)
 }
 
 void
-Interleave::tick_afters(Event initial, Process::Set* out)
+Interleave::tick_afters(Event initial, Process::Set* out) const
 {
     // afters(⫴ {STOP}, ✔) = {STOP}                                     [rule 4]
-    for (const auto& p : ps_) {
+    for (const Process* p : ps_) {
         Event::Set initials;
         p->initials(&initials);
         if (!initials.empty()) {
@@ -172,7 +172,7 @@ Interleave::tick_afters(Event initial, Process::Set* out)
 }
 
 void
-Interleave::afters(Event initial, Process::Set* out)
+Interleave::afters(Event initial, Process::Set* out) const
 {
     if (initial == Event::tau()) {
         tau_afters(initial, out);

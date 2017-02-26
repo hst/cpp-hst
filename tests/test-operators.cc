@@ -32,11 +32,11 @@ using hst::Process;
 
 namespace {
 
-Process*
+const Process*
 require_csp0(Environment* env, const std::string& csp0)
 {
     ParseError error;
-    Process* parsed = hst::load_csp0_string(env, csp0, &error);
+    const Process* parsed = hst::load_csp0_string(env, csp0, &error);
     if (!parsed) {
         fail() << "Could not parse " << csp0 << ": " << error << abort_test();
     }
@@ -68,7 +68,7 @@ void
 check_name(const std::string& csp0, const std::string& expected)
 {
     Environment env;
-    Process* process = require_csp0(&env, csp0);
+    const Process* process = require_csp0(&env, csp0);
     std::stringstream actual;
     actual << *process;
     check_eq(actual.str(), expected);
@@ -79,7 +79,7 @@ check_initials(const std::string& csp0,
                std::initializer_list<const std::string> expected)
 {
     Environment env;
-    Process* process = require_csp0(&env, csp0);
+    const Process* process = require_csp0(&env, csp0);
     Event::Set actual;
     process->initials(&actual);
     check_eq(actual, events_from_names(expected));
@@ -90,7 +90,7 @@ check_afters(const std::string& csp0, const std::string& initial,
              std::initializer_list<const std::string> expected)
 {
     Environment env;
-    Process* process = require_csp0(&env, csp0);
+    const Process* process = require_csp0(&env, csp0);
     Process::Set actual;
     process->afters(Event(initial), &actual);
     check_eq(actual, require_csp0_set(&env, expected));
