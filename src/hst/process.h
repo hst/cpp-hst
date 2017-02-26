@@ -37,6 +37,25 @@ class Process {
     // `initial` event from this process.
     virtual void afters(Event initial, Set* out) const = 0;
 
+    // Calls op for each of the process's outgoing transitions.  op must have a
+    // signature compatible with:
+    //
+    //   bool op(Event initial, const Process* processs)
+    //
+    // If op ever returns false, then we'll abort the iteration.
+    template <typename F>
+    void transitions(const F& op) const;
+
+    // Performs a breadth-first search of the reachable subprocesses, calling op
+    // for each one.  We guarantee that we'll call op() at most once for each
+    // reachable subprocess.  op must have a signature compatible with:
+    //
+    //   bool op(const Process* process)
+    //
+    // If op ever returns false, then we'll abort the search.
+    template <typename F>
+    void bfs(const F& op) const;
+
     virtual std::size_t hash() const = 0;
     virtual bool operator==(const Process& other) const = 0;
     bool operator!=(const Process& other) const { return !(*this == other); }
@@ -124,6 +143,51 @@ struct hash<hst::Process::Set>
 // Internals!
 
 namespace hst {
+
+template <typename F>
+void
+Process::transitions(const F& op) const
+{
+    Event::Set initials;
+    this->initials(&initials);
+    for (const auto& initial : initials) {
+        Process::Set afters;
+        this->afters(initial, &afters);
+        for (const auto& after : afters) {
+            if (!op(initial, after)) {
+                return;
+            }
+        }
+    }
+}
+
+template <typename F>
+void
+Process::bfs(const F& op) const
+{
+    std::unordered_set<const Process*> seen;
+    std::unordered_set<const Process*> queue;
+
+    queue.insert(this);
+    while (!queue.empty()) {
+        std::unordered_set<const Process*> next_queue;
+        for (const Process* process : queue) {
+            if (!op(process)) {
+                return;
+            }
+            process->transitions(
+                    [&seen, &next_queue](Event initial, const Process* after) {
+                        auto result = seen.insert(after);
+                        bool added = result.second;
+                        if (added) {
+                            next_queue.insert(after);
+                        }
+                        return true;
+                    });
+        }
+        std::swap(queue, next_queue);
+    }
+}
 
 template <typename T>
 void
