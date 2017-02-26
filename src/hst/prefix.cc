@@ -20,9 +20,9 @@ namespace {
 
 class Prefix : public Process {
   public:
-    Prefix(Event a, Process* p) : a_(a), p_(p) {}
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    Prefix(Event a, const Process* p) : a_(a), p_(p) {}
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -31,13 +31,13 @@ class Prefix : public Process {
 
   private:
     Event a_;
-    Process* p_;
+    const Process* p_;
 };
 
 }  // namespace
 
-Process*
-Environment::prefix(Event a, Process* p)
+const Process*
+Environment::prefix(Event a, const Process* p)
 {
     return register_process(std::unique_ptr<Process>(new Prefix(a, p)));
 }
@@ -48,14 +48,14 @@ Environment::prefix(Event a, Process* p)
 //     a → P -a→ P
 
 void
-Prefix::initials(std::set<Event>* out)
+Prefix::initials(std::set<Event>* out) const
 {
     // initials(a → P) = {a}
     out->insert(a_);
 }
 
 void
-Prefix::afters(Event initial, Process::Set* out)
+Prefix::afters(Event initial, Process::Set* out) const
 {
     // afters(a → P, a) = P
     if (initial == a_) {

@@ -25,8 +25,8 @@ class ExternalChoice : public Process {
     {
     }
 
-    void initials(Event::Set* out) override;
-    void afters(Event initial, Process::Set* out) override;
+    void initials(Event::Set* out) const override;
+    void afters(Event initial, Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -40,15 +40,15 @@ class ExternalChoice : public Process {
 
 }  // namespace
 
-Process*
+const Process*
 Environment::external_choice(Process::Set ps)
 {
     return register_process(
             std::unique_ptr<Process>(new ExternalChoice(this, std::move(ps))));
 }
 
-Process*
-Environment::external_choice(Process* p, Process* q)
+const Process*
+Environment::external_choice(const Process* p, const Process* q)
 {
     return external_choice(Process::Set{p, q});
 }
@@ -64,7 +64,7 @@ Environment::external_choice(Process* p, Process* q)
 //       □ Ps -a→ P'
 
 void
-ExternalChoice::initials(Event::Set* out)
+ExternalChoice::initials(Event::Set* out) const
 {
     // 1) If P ∈ Ps can perform τ, then □ Ps can perform τ.
     // 2) If P ∈ Ps can perform a ≠ τ, then □ Ps can perform a ≠ τ.
@@ -73,13 +73,13 @@ ExternalChoice::initials(Event::Set* out)
     //                ∪ ⋃ { initials(P) ∖ {τ} | P ∈ Ps }                [rule 2]
     //
     //                = ⋃ { initials(P) | P ∈ Ps }
-    for (const auto& p : ps_) {
+    for (const Process* p : ps_) {
         p->initials(out);
     }
 }
 
 void
-ExternalChoice::afters(Event initial, Process::Set* out)
+ExternalChoice::afters(Event initial, Process::Set* out) const
 {
     // afters(□ Ps, τ) = ⋃ { □ Ps ∖ {P} ∪ {P'} | P ∈ Ps, P' ∈ afters(P, τ) }
     //                                                                  [rule 1]
@@ -89,13 +89,13 @@ ExternalChoice::afters(Event initial, Process::Set* out)
         // basic structure: Ps' = Ps ∖ {P} ∪ {P'}.  Each Ps' starts with Ps, so
         // go ahead and add that into our Ps' set once.
         Process::Set ps_prime(ps_);
-        for (const auto& p : ps_) {
+        for (const Process* p : ps_) {
             // Set Ps' to Ps ∖ {P}
             ps_prime.erase(p);
             // Grab afters(P, τ)
             Process::Set p_afters;
             p->afters(initial, &p_afters);
-            for (const auto& p_prime : p_afters) {
+            for (const Process* p_prime : p_afters) {
                 // ps_prime currently contains (Ps ∖ {P}).  Add P' to produce
                 // (Ps ∖ {P} ∪ {P'})
                 ps_prime.insert(p_prime);
@@ -108,7 +108,7 @@ ExternalChoice::afters(Event initial, Process::Set* out)
             ps_prime.insert(p);
         }
     } else {
-        for (const auto& p : ps_) {
+        for (const Process* p : ps_) {
             p->afters(initial, out);
         }
     }

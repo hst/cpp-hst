@@ -25,17 +25,17 @@ namespace hst {
 
 class Process {
   public:
-    using Bag = std::unordered_multiset<Process*>;
-    using Set = std::unordered_set<Process*>;
+    using Bag = std::unordered_multiset<const Process*>;
+    using Set = std::unordered_set<const Process*>;
 
     virtual ~Process() = default;
 
     // Fill `out` with the initial events of this process.
-    virtual void initials(Event::Set* out) = 0;
+    virtual void initials(Event::Set* out) const = 0;
 
     // Fill `out` with the subprocesses that you reach after following a single
     // `initial` event from this process.
-    virtual void afters(Event initial, Set* out) = 0;
+    virtual void afters(Event initial, Set* out) const = 0;
 
     virtual std::size_t hash() const = 0;
     virtual bool operator==(const Process& other) const = 0;

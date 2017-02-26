@@ -47,10 +47,11 @@ check_csp0_invalid(const std::string& csp0)
 }
 
 static void
-check_csp0_eq(Environment* env, const std::string& csp0, Process* expected)
+check_csp0_eq(Environment* env, const std::string& csp0,
+              const Process* expected)
 {
     ParseError error;
-    Process* actual = hst::load_csp0_string(env, csp0, &error);
+    const Process* actual = hst::load_csp0_string(env, csp0, &error);
     if (!actual) {
         fail() << "Could not parse " << csp0 << ": " << error << abort_test();
     }

@@ -31,7 +31,7 @@ operator<<(std::ostream& out, const ParseError& error)
     return out << error.message;
 }
 
-Process*
+const Process*
 load_csp0_string(Environment* env, const std::string& csp0, ParseError* error);
 
 }  // namespace hst

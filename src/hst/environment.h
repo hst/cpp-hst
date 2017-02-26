@@ -19,16 +19,16 @@ class Environment {
   public:
     Environment();
 
-    Process* external_choice(Process* p, Process* q);
-    Process* external_choice(Process::Set ps);
-    Process* interleave(Process* p, Process* q);
-    Process* interleave(Process::Bag ps);
-    Process* internal_choice(Process* p, Process* q);
-    Process* internal_choice(Process::Set ps);
-    Process* prefix(Event a, Process* p);
-    Process* sequential_composition(Process* p, Process* q);
-    Process* skip() const { return skip_; }
-    Process* stop() const { return stop_; }
+    const Process* external_choice(const Process* p, const Process* q);
+    const Process* external_choice(Process::Set ps);
+    const Process* interleave(const Process* p, const Process* q);
+    const Process* interleave(Process::Bag ps);
+    const Process* internal_choice(const Process* p, const Process* q);
+    const Process* internal_choice(Process::Set ps);
+    const Process* prefix(Event a, const Process* p);
+    const Process* sequential_composition(const Process* p, const Process* q);
+    const Process* skip() const { return skip_; }
+    const Process* stop() const { return stop_; }
 
   private:
     struct deref_hash {
@@ -51,11 +51,11 @@ class Environment {
 
     // Ensures that there is exactly one process in the registry equal to
     // `process`, returning a pointer to that process.
-    Process* register_process(std::unique_ptr<Process> process);
+    const Process* register_process(std::unique_ptr<Process> process);
 
     Registry registry_;
-    Process* skip_;
-    Process* stop_;
+    const Process* skip_;
+    const Process* stop_;
 };
 
 }  // namespace hst
