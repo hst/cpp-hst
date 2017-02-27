@@ -171,7 +171,8 @@ void
 check_eq(const T& actual, const T& expected)
 {
     if (actual != expected) {
-        fail() << "Expected " << expected << ", got " << actual << abort_test();
+        fail() << "Expected " << expected << std::endl
+               << "# Got      " << actual << abort_test();
     }
 }
 
