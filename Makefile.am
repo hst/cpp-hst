@@ -31,7 +31,9 @@ libhst_la_SOURCES = \
 	src/hst/sequential-composition.cc
 
 hst_SOURCES = \
-	src/hst/hst/hst.cc
+	src/hst/hst/command.h \
+	src/hst/hst/hst.cc \
+	src/hst/hst/reachable.cc
 hst_LDADD = libhst.la
 
 # Keep this sorted generally in order of dependency, so that more basic features
