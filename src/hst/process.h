@@ -113,6 +113,10 @@ class Process::Set : public std::unordered_set<const Process*> {
     using Parent::unordered_set;
 
     std::size_t hash() const;
+
+    // Updates this set of processes to be τ-closed.  (That is, we add any
+    // additional processes you can reach by following τ one or more times.)
+    void tau_close();
 };
 
 bool
