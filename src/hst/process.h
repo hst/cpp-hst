@@ -25,8 +25,8 @@ namespace hst {
 
 class Process {
   public:
-    using Bag = std::unordered_multiset<const Process*>;
-    using Set = std::unordered_set<const Process*>;
+    class Bag;
+    class Set;
 
     virtual ~Process() = default;
 
@@ -90,21 +90,35 @@ operator<<(std::ostream& out, const Process& process)
     return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const Process::Bag& processes);
+class Process::Bag : public std::unordered_multiset<const Process*> {
+  private:
+    using Parent = std::unordered_multiset<const Process*>;
+
+  public:
+    using Parent::unordered_multiset;
+
+    std::size_t hash() const;
+};
 
 bool
 operator==(const Process::Bag& lhs, const Process::Bag& rhs);
 
-std::size_t
-hash(const Process::Bag& set);
+std::ostream& operator<<(std::ostream& out, const Process::Bag& processes);
 
-std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
+class Process::Set : public std::unordered_set<const Process*> {
+  private:
+    using Parent = std::unordered_set<const Process*>;
+
+  public:
+    using Parent::unordered_set;
+
+    std::size_t hash() const;
+};
 
 bool
 operator==(const Process::Set& lhs, const Process::Set& rhs);
 
-std::size_t
-hash(const Process::Set& set);
+std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 
 }  // namespace hst
 
@@ -122,9 +136,9 @@ struct hash<hst::Process>
 template <>
 struct hash<hst::Process::Bag>
 {
-    std::size_t operator()(const hst::Process::Bag& set) const
+    std::size_t operator()(const hst::Process::Bag& bag) const
     {
-        return hst::hash(set);
+        return bag.hash();
     }
 };
 
@@ -133,7 +147,7 @@ struct hash<hst::Process::Set>
 {
     std::size_t operator()(const hst::Process::Set& set) const
     {
-        return hst::hash(set);
+        return set.hash();
     }
 };
 

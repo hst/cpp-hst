@@ -48,7 +48,7 @@ Environment::prefix(Event a, const Process* p)
 //     a → P -a→ P
 
 void
-Prefix::initials(std::set<Event>* out) const
+Prefix::initials(Event::Set* out) const
 {
     // initials(a → P) = {a}
     out->insert(a_);

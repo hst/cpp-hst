@@ -20,7 +20,7 @@ namespace hst {
 
 class Event {
   public:
-    using Set = std::set<Event>;
+    class Set;
 
     explicit Event(const std::string& name) : index_(find_or_create_event(name))
     {
@@ -61,6 +61,15 @@ class Event {
 };
 
 std::ostream& operator<<(std::ostream& out, const Event& event);
+
+class Event::Set : public std::set<Event> {
+  private:
+    using Parent = std::set<Event>;
+
+  public:
+    using Parent::set;
+};
+
 std::ostream& operator<<(std::ostream& out, const Event::Set& events);
 
 }  // namespace hst
