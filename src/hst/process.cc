@@ -17,6 +17,17 @@
 
 namespace hst {
 
+std::size_t
+Process::Bag::hash() const
+{
+    static hash_scope scope;
+    hst::hasher hash(scope);
+    for (const Process* process : *this) {
+        hash.add_unordered(*process);
+    }
+    return hash.value();
+}
+
 bool
 operator==(const Process::Bag& lhs, const Process::Bag& rhs)
 {
@@ -57,11 +68,11 @@ std::ostream& operator<<(std::ostream& out, const Process::Bag& processes)
 }
 
 std::size_t
-hash(const Process::Bag& set)
+Process::Set::hash() const
 {
     static hash_scope scope;
-    hasher hash(scope);
-    for (const Process* process : set) {
+    hst::hasher hash(scope);
+    for (const Process* process : *this) {
         hash.add_unordered(*process);
     }
     return hash.value();
@@ -104,17 +115,6 @@ std::ostream& operator<<(std::ostream& out, const Process::Set& processes)
         out << process;
     }
     return out << "}";
-}
-
-std::size_t
-hash(const Process::Set& set)
-{
-    static hash_scope scope;
-    hasher hash(scope);
-    for (const Process* process : set) {
-        hash.add_unordered(*process);
-    }
-    return hash.value();
 }
 
 }  // namespace hst

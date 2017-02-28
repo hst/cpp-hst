@@ -59,7 +59,7 @@ Environment::sequential_composition(const Process* p, const Process* q)
 //       P;Q -τ→ Q
 
 void
-SequentialComposition::initials(std::set<Event>* out) const
+SequentialComposition::initials(Event::Set* out) const
 {
     // 1) P;Q can perform all of the same events as P, except for ✔.
     // 2) If P can perform ✔, then P;Q can perform τ.
