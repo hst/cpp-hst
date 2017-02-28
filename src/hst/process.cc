@@ -78,6 +78,24 @@ Process::Set::hash() const
     return hash.value();
 }
 
+void
+Process::Set::tau_close()
+{
+    Event tau = Event::tau();
+    while (true) {
+        Process::Set new_processes;
+        for (const Process* process : *this) {
+            process->afters(tau, &new_processes);
+        }
+        size_type old_size = size();
+        insert(new_processes.begin(), new_processes.end());
+        size_type new_size = size();
+        if (old_size == new_size) {
+            return;
+        }
+    }
+}
+
 bool
 operator==(const Process::Set& lhs, const Process::Set& rhs)
 {

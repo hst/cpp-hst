@@ -111,6 +111,18 @@ check_reachable(const std::string& csp0,
     check_eq(actual, require_csp0_set(&env, expected));
 }
 
+// Verify the τ-closure of `process`.
+void
+check_tau_closure(const std::string& csp0,
+                  std::initializer_list<const std::string> expected)
+{
+    Environment env;
+    const Process* process = require_csp0(&env, csp0);
+    Process::Set actual{process};
+    actual.tau_close();
+    check_eq(actual, require_csp0_set(&env, expected));
+}
+
 }  // namespace
 
 TEST_CASE_GROUP("process comparisons");
@@ -152,6 +164,7 @@ TEST_CASE("STOP □ STOP")
     check_initials(p, {});
     check_afters(p, "a", {});
     check_reachable(p, {"STOP □ STOP"});
+    check_tau_closure(p, {"STOP □ STOP"});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
@@ -164,6 +177,8 @@ TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
     check_afters(p, "τ", {"a → STOP □ b → STOP", "a → STOP □ c → STOP"});
     check_reachable(p, {"(a → STOP) □ (b → STOP ⊓ c → STOP)",
                         "a → STOP □ b → STOP", "a → STOP □ c → STOP", "STOP"});
+    check_tau_closure(p, {"(a → STOP) □ (b → STOP ⊓ c → STOP)",
+                          "a → STOP □ b → STOP", "a → STOP □ c → STOP"});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP)")
@@ -175,6 +190,7 @@ TEST_CASE("(a → STOP) □ (b → STOP)")
     check_afters(p, "b", {"STOP"});
     check_afters(p, "τ", {});
     check_reachable(p, {"(a → STOP) □ (b → STOP)", "STOP"});
+    check_tau_closure(p, {"(a → STOP) □ (b → STOP)"});
 }
 
 TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
@@ -187,6 +203,7 @@ TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
     check_afters(p, "c", {"STOP"});
     check_afters(p, "τ", {});
     check_reachable(p, {"□ {a → STOP, b → STOP, c → STOP}", "STOP"});
+    check_tau_closure(p, {"□ {a → STOP, b → STOP, c → STOP}"});
 }
 
 TEST_CASE_GROUP("interleaving");
@@ -200,6 +217,7 @@ TEST_CASE("STOP ⫴ STOP")
     check_afters(p, "a", {});
     check_afters(p, "τ", {});
     check_reachable(p, {"STOP ⫴ STOP", "STOP"});
+    check_tau_closure(p, {"STOP ⫴ STOP"});
 }
 
 TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
@@ -215,6 +233,8 @@ TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
                 "STOP ⫴ (b → STOP ⊓ c → STOP)", "STOP ⫴ b → STOP",
                 "STOP ⫴ c → STOP", "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP",
                 "a → STOP ⫴ STOP", "STOP ⫴ STOP", "STOP"});
+    check_tau_closure(p, {"(a → STOP) ⫴ (b → STOP ⊓ c → STOP)",
+                          "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP"});
 }
 
 TEST_CASE("a → STOP ⫴ a → STOP")
@@ -227,6 +247,7 @@ TEST_CASE("a → STOP ⫴ a → STOP")
     check_afters(p, "τ", {});
     check_reachable(p, {"a → STOP ⫴ a → STOP", "a → STOP ⫴ STOP", "STOP ⫴ STOP",
                         "STOP"});
+    check_tau_closure(p, {"a → STOP ⫴ a → STOP"});
 }
 
 TEST_CASE("a → STOP ⫴ b → STOP")
@@ -239,6 +260,7 @@ TEST_CASE("a → STOP ⫴ b → STOP")
     check_afters(p, "τ", {});
     check_reachable(p, {"a → STOP ⫴ b → STOP", "a → STOP ⫴ STOP",
                         "STOP ⫴ b → STOP", "STOP ⫴ STOP", "STOP"});
+    check_tau_closure(p, {"a → STOP ⫴ b → STOP"});
 }
 
 TEST_CASE("a → SKIP ⫴ b → SKIP")
@@ -253,6 +275,7 @@ TEST_CASE("a → SKIP ⫴ b → SKIP")
     check_reachable(p, {"a → SKIP ⫴ b → SKIP", "a → SKIP ⫴ SKIP",
                         "a → SKIP ⫴ STOP", "SKIP ⫴ b → SKIP", "STOP ⫴ b → SKIP",
                         "STOP ⫴ SKIP", "STOP ⫴ STOP", "SKIP ⫴ SKIP", "STOP"});
+    check_tau_closure(p, {"a → SKIP ⫴ b → SKIP"});
 }
 
 TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
@@ -269,6 +292,7 @@ TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
                 "(SKIP ⫴ b → SKIP) ; c → STOP", "(STOP ⫴ b → SKIP) ; c → STOP",
                 "(STOP ⫴ SKIP) ; c → STOP", "(STOP ⫴ STOP) ; c → STOP",
                 "(SKIP ⫴ SKIP) ; c → STOP", "c → STOP", "STOP"});
+    check_tau_closure(p, {"(a → SKIP ⫴ b → SKIP) ; c → STOP"});
 }
 
 TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
@@ -286,6 +310,7 @@ TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
              "⫴ {STOP, a → STOP, c → STOP}", "⫴ {STOP, b → STOP, c → STOP}",
              "⫴ {STOP, STOP, a → STOP}", "⫴ {STOP, STOP, b → STOP}",
              "⫴ {STOP, STOP, c → STOP}", "⫴ {STOP, STOP, STOP}", "STOP"});
+    check_tau_closure(p, {"⫴ {a → STOP, b → STOP, c → STOP}"});
 }
 
 TEST_CASE_GROUP("internal choice");
@@ -298,6 +323,7 @@ TEST_CASE("STOP ⊓ STOP")
     check_afters(p, "τ", {"STOP"});
     check_afters(p, "a", {});
     check_reachable(p, {"STOP ⊓ STOP", "STOP"});
+    check_tau_closure(p, {"STOP ⊓ STOP", "STOP"});
 }
 
 TEST_CASE("(a → STOP) ⊓ (b → STOP)")
@@ -309,6 +335,7 @@ TEST_CASE("(a → STOP) ⊓ (b → STOP)")
     check_afters(p, "a", {});
     check_reachable(
             p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP", "STOP"});
+    check_tau_closure(p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP"});
 }
 
 TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
@@ -320,6 +347,8 @@ TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
     check_afters(p, "a", {});
     check_reachable(p, {"⊓ {a → STOP, b → STOP, c → STOP}", "a → STOP",
                         "b → STOP", "c → STOP", "STOP"});
+    check_tau_closure(p, {"⊓ {a → STOP, b → STOP, c → STOP}", "a → STOP",
+                          "b → STOP", "c → STOP"});
 }
 
 TEST_CASE_GROUP("prefix");
@@ -332,6 +361,7 @@ TEST_CASE("a → STOP")
     check_afters(p, "a", {"STOP"});
     check_afters(p, "τ", {});
     check_reachable(p, {"a → STOP", "STOP"});
+    check_tau_closure(p, {"a → STOP"});
 }
 
 TEST_CASE("a → b → STOP")
@@ -342,6 +372,7 @@ TEST_CASE("a → b → STOP")
     check_afters(p, "a", {"b → STOP"});
     check_afters(p, "τ", {});
     check_reachable(p, {"a → b → STOP", "b → STOP", "STOP"});
+    check_tau_closure(p, {"a → b → STOP"});
 }
 
 TEST_CASE_GROUP("SKIP");
@@ -355,6 +386,7 @@ TEST_CASE("SKIP")
     check_afters(skip, "τ", {});
     check_afters(skip, "✔", {"STOP"});
     check_reachable(skip, {"SKIP", "STOP"});
+    check_tau_closure(skip, {"SKIP"});
 }
 
 TEST_CASE_GROUP("STOP");
@@ -367,6 +399,7 @@ TEST_CASE("STOP")
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
     check_reachable(stop, {"STOP"});
+    check_tau_closure(stop, {"STOP"});
 }
 
 TEST_CASE_GROUP("sequential composition");
@@ -381,6 +414,7 @@ TEST_CASE("SKIP ; STOP")
     check_afters(p, "τ", {"STOP"});
     check_afters(p, "✔", {});
     check_reachable(p, {"SKIP ; STOP", "STOP"});
+    check_tau_closure(p, {"SKIP ; STOP", "STOP"});
 }
 
 TEST_CASE("a → SKIP ; STOP")
@@ -393,6 +427,7 @@ TEST_CASE("a → SKIP ; STOP")
     check_afters(p, "τ", {});
     check_afters(p, "✔", {});
     check_reachable(p, {"a → SKIP ; STOP", "SKIP ; STOP", "STOP"});
+    check_tau_closure(p, {"a → SKIP ; STOP"});
 }
 
 TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
@@ -406,6 +441,7 @@ TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
     check_afters(p, "✔", {});
     check_reachable(p, {"(a → b → STOP □ SKIP) ; STOP", "b → STOP ; STOP",
                         "STOP ; STOP", "STOP"});
+    check_tau_closure(p, {"(a → b → STOP □ SKIP) ; STOP", "STOP"});
 }
 
 TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
@@ -420,4 +456,6 @@ TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
     check_reachable(p,
                     {"(a → b → STOP ⊓ SKIP) ; STOP", "a → b → STOP ; STOP",
                      "SKIP ; STOP", "b → STOP ; STOP", "STOP ; STOP", "STOP"});
+    check_tau_closure(p, {"(a → b → STOP ⊓ SKIP) ; STOP", "a → b → STOP ; STOP",
+                          "SKIP ; STOP", "STOP"});
 }
