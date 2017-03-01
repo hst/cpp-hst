@@ -29,6 +29,8 @@ class Environment {
     const Process* sequential_composition(const Process* p, const Process* q);
     const Process* skip() const { return skip_; }
     const Process* stop() const { return stop_; }
+    const NormalizedProcess* prenormalize(const Process* p);
+    const NormalizedProcess* prenormalize(Process::Set ps);
 
   private:
     struct deref_hash {
@@ -52,6 +54,8 @@ class Environment {
     // Ensures that there is exactly one process in the registry equal to
     // `process`, returning a pointer to that process.
     const Process* register_process(std::unique_ptr<Process> process);
+    const NormalizedProcess*
+    register_process(std::unique_ptr<NormalizedProcess> process);
 
     Registry registry_;
     const Process* skip_;

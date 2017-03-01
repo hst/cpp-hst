@@ -90,6 +90,12 @@ operator<<(std::ostream& out, const Process& process)
     return out;
 }
 
+class NormalizedProcess : public Process {
+  public:
+    virtual const NormalizedProcess* after(Event initial) const = 0;
+    void afters(Event initial, Set* out) const final;
+};
+
 class Process::Bag : public std::unordered_multiset<const Process*> {
   private:
     using Parent = std::unordered_multiset<const Process*>;
