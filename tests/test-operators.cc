@@ -459,3 +459,68 @@ TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
     check_tau_closure(p, {"(a → b → STOP ⊓ SKIP) ; STOP", "a → b → STOP ; STOP",
                           "SKIP ; STOP", "STOP"});
 }
+
+TEST_CASE_GROUP("prenormalization");
+
+TEST_CASE("prenormalize {a → STOP}")
+{
+    auto p = "prenormalize {a → STOP}";
+    check_name(p, "prenormalize {a → STOP}");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"prenormalize {STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(p, {"prenormalize {a → STOP}", "prenormalize {STOP}"});
+    check_tau_closure(p, {"prenormalize {a → STOP}"});
+}
+
+TEST_CASE("prenormalize {a → STOP □ b → STOP}")
+{
+    auto p = "prenormalize {a → STOP □ b → STOP}";
+    check_name(p, "prenormalize {a → STOP □ b → STOP}");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"prenormalize {STOP}"});
+    check_afters(p, "b", {"prenormalize {STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(
+            p, {"prenormalize {a → STOP □ b → STOP}", "prenormalize {STOP}"});
+    check_tau_closure(p, {"prenormalize {a → STOP □ b → STOP}"});
+}
+
+TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
+{
+    auto p = "prenormalize {a → STOP □ a → b → STOP}";
+    check_name(p, "prenormalize {a → STOP □ a → b → STOP}");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"prenormalize {STOP, b → STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(p,
+                    {"prenormalize {a → STOP □ a → b → STOP}",
+                     "prenormalize {STOP, b → STOP}", "prenormalize {STOP}"});
+    check_tau_closure(p, {"prenormalize {a → STOP □ a → b → STOP}"});
+}
+
+TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
+{
+    auto p = "prenormalize {a → STOP ⊓ b → STOP}";
+    check_name(p, "prenormalize {a → STOP, a → STOP ⊓ b → STOP, b → STOP}");
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"prenormalize {STOP}"});
+    check_afters(p, "b", {"prenormalize {STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(
+            p, {"prenormalize {a → STOP ⊓ b → STOP}", "prenormalize {STOP}"});
+    check_tau_closure(p, {"prenormalize {a → STOP ⊓ b → STOP}"});
+}
+
+TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
+{
+    auto p = "prenormalize {a → SKIP ; b → STOP}";
+    check_name(p, "prenormalize {a → SKIP ; b → STOP}");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"prenormalize {SKIP ; b → STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(p,
+                    {"prenormalize {a → SKIP ; b → STOP}",
+                     "prenormalize {SKIP ; b → STOP}", "prenormalize {STOP}"});
+    check_tau_closure(p, {"prenormalize {a → SKIP ; b → STOP}"});
+}

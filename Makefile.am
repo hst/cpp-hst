@@ -26,6 +26,7 @@ libhst_la_SOURCES = \
 	src/hst/interleave.cc \
 	src/hst/internal-choice.cc \
 	src/hst/prefix.cc \
+	src/hst/prenormalize.cc \
 	src/hst/process.h \
 	src/hst/process.cc \
 	src/hst/sequential-composition.cc

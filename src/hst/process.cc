@@ -17,6 +17,15 @@
 
 namespace hst {
 
+void
+NormalizedProcess::afters(Event initial, Set* out) const
+{
+    const NormalizedProcess* process = after(initial);
+    if (process) {
+        out->insert(process);
+    }
+}
+
 std::size_t
 Process::Bag::hash() const
 {

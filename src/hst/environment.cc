@@ -130,4 +130,11 @@ Environment::register_process(std::unique_ptr<Process> process)
     return result.first->get();
 }
 
+const NormalizedProcess*
+Environment::register_process(std::unique_ptr<NormalizedProcess> process)
+{
+    auto result = registry_.insert(std::move(process));
+    return static_cast<const NormalizedProcess*>(result.first->get());
+}
+
 }  // namespace hst

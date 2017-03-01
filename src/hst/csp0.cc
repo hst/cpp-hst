@@ -701,13 +701,35 @@ class Process11 : public Parser {
     }
 };
 
+#define Process12 Process11  // NIY
+
+class Process13 : public Parser {
+  public:
+    Process13(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process13")
+    {
+        // process13 = process12 | prenormalize {process}
+
+        // prenormalize {process}
+        if (attempt<RequireString>("prenormalize")) {
+            return_if_error(attempt<SkipWhitespace>());
+            hst::Process::Set processes;
+            return_if_error(attempt<ProcessSet>(env, &processes));
+            *out = env->prenormalize(std::move(processes));
+            return;
+        }
+
+        return_if_error(attempt<Process12>(env, out));
+    }
+};
+
 // Now that we have all of our per-level Parsers defined, we just have to
 // delegate to the top level of the precedence tree to parse a Process.
 Process::Process(Parser* parent, hst::Environment* env,
                  const hst::Process** out)
     : Parser(parent, "process")
 {
-    return_if_error(attempt<Process11>(env, out));
+    return_if_error(attempt<Process13>(env, out));
 }
 
 }  // namespace
