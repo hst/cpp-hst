@@ -8,6 +8,7 @@
 #include "hst/csp0.h"
 
 #include <cassert>
+#include <cstring>
 #include <functional>
 #include <string>
 
@@ -18,14 +19,20 @@
 //------------------------------------------------------------------------------
 // Debugging nonsense
 
-#if defined(DEBUG_CSP0)
+// Define DEBUG_CSP0 to 1 to get debugging information about which parser rules
+// are being attempted.  Define it to 2 to also get information about which
+// individual characters are being parsed.
+
+#if DEBUG_CSP0
 #include <iostream>
 #endif
+
+namespace {
 
 class DebugStream {
   public:
     ~DebugStream() {
-#if defined(DEBUG_CSP0)
+#if DEBUG_CSP0
         std::cerr << std::endl;
 #endif
     }
@@ -33,14 +40,14 @@ class DebugStream {
     template <typename T>
     DebugStream& operator<<(const T& value)
     {
-#if defined(DEBUG_CSP0)
+#if DEBUG_CSP0
         std::cerr << value;
 #endif
         return *this;
     }
 };
 
-static DebugStream
+DebugStream
 debug()
 {
     return DebugStream();
@@ -51,8 +58,8 @@ struct hex {
     hex(char ch) : ch(ch) {}
 };
 
-#if defined(DEBUG_CSP0)
-static std::ostream&
+#if DEBUG_CSP0
+std::ostream&
 operator<<(std::ostream& out, hex ch)
 {
     unsigned char high_nybble = (ch.ch & 0xf0) >> 4;
@@ -64,6 +71,24 @@ operator<<(std::ostream& out, hex ch)
 }
 #endif
 
+struct debug_indent {
+    int width;
+    debug_indent(int width): width(width) {}
+};
+
+#if DEBUG_CSP0
+std::ostream&
+operator<<(std::ostream& out, debug_indent indent)
+{
+    for (int i = 0; i < indent.width; ++i) {
+        out << " ";
+    }
+    return out;
+}
+#endif
+
+}  // namespace
+
 //------------------------------------------------------------------------------
 // Branch prediction
 
@@ -74,13 +99,111 @@ operator<<(std::ostream& out, hex ch)
 //------------------------------------------------------------------------------
 // The actual parser
 
-namespace hst {
+namespace {
+
+// Each rule in the grammar is implemented as a subclass of Parser.  All of the
+// actual parsing of a grammar rule should happen in its constructor.  If at any
+// point the parsing of a grammar rule fails, call the fail() method to record
+// this.  You can use the `attempt` method in nonterminals to try to parse a
+// "lower-level" grammar rule; see its documentation for details.
+class Parser {
+  public:
+    // This constructor creates the "top-level" Parser, which contains the full
+    // string of data that we want to parse.  The various `load_*` functions
+    // down below will call this constructor, and immediately call its `attempt`
+    // method with the root grammar rule for whatever language is being parsed.
+    explicit Parser(const std::string& csp0)
+        : depth_(0),
+          label_("parser"),
+          p_(csp0.data()),
+          eof_(p_ + csp0.size()),
+          failed_(false)
+    {
+        debug() << debug_indent(depth_) << "START " << label_;
+    }
+
+    ~Parser() {
+        if (failed_) {
+            debug() << debug_indent(depth_) << "FAIL " << label_;
+        } else {
+            debug() << debug_indent(depth_) << "PASS " << label_;
+        }
+    }
+
+    bool eof() const { return p_ == eof_; }
+    bool failed() const { return failed_; }
+
+    // Try to parse another grammar rule at the current position in the input
+    // text.  P should be the name of the class that implements the grammar rule
+    // that you want to parse.  That class's constructor should take in a
+    // Parser* parameter, plus whatever additional parameters it needs (e.g., to
+    // store results into).
+    //
+    // If P parses successfully, we update this parser's state to consume
+    // whatever P consumed, and return true.  If P fails to parse, then we
+    // return false and nothing else happens.
+    //
+    // As an example, from within a "parent" Parser, you can call it as follows:
+    //
+    //     std::string id;
+    //     attempt<Identifier>(&id);
+    //
+    // In this case, the Identifier parser takes in an additional std::string*
+    // parameter.  Note that attempt() only takes in the "additional"
+    // constructor parameters; the first Parser* parameter will be automatically
+    // filled in with the parent parser.
+    //
+    // A very common pattern will be that if P fails, then the current parser
+    // fails as well.  To handle this, just wrap your call to attempt in
+    // return_if_failed:
+    //
+    //     std::string id;
+    //     return_if_failed(attempt<Identifier>(&id));
+    //
+    // which is just syntactic sugar for:
+    //
+    //     std::string id;
+    //     if (!attempt<Identifier>(&id)) {
+    //         fail();
+    //         return;
+    //     }
+    template <typename P, typename ...Args>
+    bool attempt(Args&&... args);
+
+  protected:
+    // This is the superclass constructor that "real" grammar rule subclasses
+    // should call; it takes care of propagating the bookkeeping from the parent
+    // parser to the child parser.  `label` should be a readable name of the
+    // grammar rule you're trying to parse; in debug mode we'll use that to
+    // print out some information about which rules are being parsed.
+    Parser(Parser* parent, const char* label)
+        : depth_(parent->depth_ + 1),
+          label_(label),
+          p_(parent->p_),
+          eof_(parent->eof_),
+          failed_(false)
+    {
+        debug() << debug_indent(depth_) << "START " << label;
+    }
+
+    void fail() { failed_ = true; }
+    size_t remaining() const { return eof_ - p_; }
+
+    void debug_char(char ch);
+    char get();
+
+    int depth_;
+    const char* label_;
+    const char* p_;
+    const char* eof_;
+    bool failed_;
+};
 
 #define return_if_success(call) \
     do {                        \
         auto __result = (call); \
         if (__result) {         \
-            return __result;    \
+            return;             \
         }                       \
     } while (0)
 
@@ -88,272 +211,277 @@ namespace hst {
     do {                        \
         auto __result = (call); \
         if (!__result) {        \
-            return __result;    \
+            fail();             \
+            return;             \
         }                       \
     } while (0)
 
-class ParseState {
-  public:
-    explicit ParseState(const std::string& csp0)
-        : ParseState(nullptr, csp0, nullptr)
-    {
-    }
-
-    ParseState(Environment* env, const std::string& csp0, ParseError* error)
-        : parent_(nullptr),
-          env_(env),
-          start_(csp0.data()),
-          p_(csp0.data()),
-          eof_(p_ + csp0.size()),
-          error_(error)
-    {
-    }
-
-    ~ParseState()
-    {
-        if (parent_) {
-            if (failed_) {
-                debug() << "FAIL   " << label_;
-            } else {
-                debug() << "PASS   " << label_;
-            }
-        }
-        if (parent_ && !failed_) {
-            parent_->p_ = p_;
-        }
-    }
-
-    Environment* env() const { return env_; }
-
-    char get();
-    bool get(char* out);
-
-    bool parse_error(const std::string& message)
-    {
-        fail();
-        error_->set_message(message);
-        debug() << "ERROR  " << label_ << ": " << message;
-        return false;
-    }
-
-    bool eof() const { return p_ == eof_; }
-    void fail() { failed_ = true; }
-    size_t remaining() const { return eof_ - p_; }
-
-    // Return a std::string containing whichever characters were successfully
-    // parsed using this ParseState.
-    std::string as_string() const { return std::string(start_, p_ - start_); }
-
-    // Returns a new ParseState that lets you implement a limited form of
-    // backtracking.  The new ParseState will point at the same position in the
-    // original input as this.  Use the new ParseState to attempt to parse some
-    // part of the grammar.  If that succeeds, when the new ParseState goes out
-    // of scope, it will update this to skip over whatever you successfully
-    // parsed out of the new ParseState.  If it fails, call its fail() method
-    // before it goes out of scope; that will prevent it from updating this.
-    ParseState attempt(const std::string& label)
-    {
-        return ParseState(this, env_, label, p_, p_, eof_, error_);
-    }
-
-  private:
-    ParseState(ParseState* parent, Environment* env, const std::string& label,
-               const char* start, const char* p, const char* eof,
-               ParseError* error)
-        : parent_(parent),
-          env_(env),
-          label_(label),
-          start_(start),
-          p_(p),
-          eof_(eof),
-          error_(error)
-    {
-        debug() << "START  " << label_;
-    }
-
-    ParseState* parent_;
-    Environment* env_;
-    const std::string label_;
-    const char* start_;
-    const char* p_;
-    const char* eof_;
-    bool failed_ = false;
-    ParseError* error_;
-};
-
-inline char
-ParseState::get()
+inline void
+Parser::debug_char(char ch)
 {
-    assert(p_ < eof_);
-    char ch = *p_++;
-    if (!label_.empty()) {
+#if DEBUG_CSP0
+    if (DEBUG_CSP0 > 1 && label_) {
         debug() << "[" << hex(ch) << " "
                 << (((unsigned char) ch) < 0x80 ? ch : '*') << "] " << label_;
     }
+#endif
+}
+
+inline char
+Parser::get()
+{
+    assert(p_ < eof_);
+    char ch = *p_++;
+    debug_char(ch);
     return ch;
 }
 
-inline bool
-ParseState::get(char* out)
+template <typename P, typename ...Args>
+bool
+Parser::attempt(Args&&... args)
 {
-    if (unlikely(p_ == eof_)) {
-        return parse_error("Unexpected end of input");
+    P parser(this, std::forward<Args>(args)...);
+    if (parser.failed()) {
+        return false;
     }
-    *out = get();
+    // If the child parser succeeded, update our state to consume all of the
+    // data that the child just parsed.
+    p_ = parser.p_;
     return true;
 }
 
-template <typename F>
-static void
-skip_while(ParseState* parent, const std::string& label, F pred)
-{
-    ParseState state = parent->attempt(label);
-    // As long as there are more characters to consume...
-    while (likely(!state.eof())) {
-        // Try to consume one character.
-        ParseState ch = state.attempt(label);
-        if (!pred(ch.get())) {
-            // If it doesn't match the predicate, then return this character to
-            // the stream and return.
-            ch.fail();
+//------------------------------------------------------------------------------
+// Our grammar rules
+
+// Requires there is at least one more character in the input text, and that
+// that character satisfies P::predicate().
+template <typename P>
+class RequireChar : public Parser {
+  public:
+    RequireChar(Parser* parent, const char* label) : Parser(parent, label)
+    {
+        if (unlikely(eof() || !P::predicate(get()))) {
+            fail();
+        }
+    }
+};
+
+// Requires that a particular string appear next in the input text.
+class RequireString : public Parser {
+  public:
+    RequireString(Parser* parent, const char* expected)
+        : Parser(parent, expected)
+    {
+        size_t length = strlen(expected);
+        if (unlikely(remaining() < length)) {
+            fail();
             return;
         }
-    }
-}
 
-static void
-skip_whitespace(ParseState* state)
-{
-    skip_while(state, "whitespace", [](char ch) -> bool {
+        if (unlikely(memcmp(expected, p_, length) != 0)) {
+            fail();
+            return;
+        }
+
+#if DEBUG_CSP0
+        for (const char* ch = expected; ch < expected + length; ++ch) {
+            debug_char(*ch);
+        }
+#endif
+        p_ += length;
+    }
+};
+
+// Skips over any characters in the input text that satisfy P::predicate.  This
+// parser will never fail; if there aren't any characters that satisfy the
+// predicate, nothing happens.
+template <typename P>
+class SkipWhile : public Parser {
+  public:
+    SkipWhile(Parser* parent, const char* label) : Parser(parent, label)
+    {
+        const char* curr;
+        for (curr = p_; curr < eof_ && P::predicate(*curr); ++curr) {
+            debug_char(*curr);
+        }
+        p_ = curr;
+    }
+};
+
+// Skips over any whitespace in the input text.
+class SkipWhitespace : public SkipWhile<SkipWhitespace> {
+  public:
+    explicit SkipWhitespace(Parser* parent) : SkipWhile(parent, "whitespace") {}
+    static bool predicate(char ch) {
         return ch == ' ' || ch == '\f' || ch == '\n' || ch == '\r' ||
                ch == '\t' || ch == '\v';
-    });
-}
-
-static bool
-is_idstart(char ch)
-{
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
-}
-
-static bool
-is_idchar(char ch)
-{
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-           (ch >= '0' && ch <= '9') || ch == '_' || ch == '.';
-}
-
-static bool
-parse_dollar_identifier(ParseState* parent, std::string* out)
-{
-    ParseState state = parent->attempt("dollar identifier");
-    char ch;
-    // Parse the leading $
-    return_if_error(state.get(&ch));
-    if (unlikely(ch != '$')) {
-        return state.parse_error("Expected a $");
     }
-    // A $ identifier must contain at least one character after the $
-    return_if_error(state.get(&ch));
-    if (unlikely(!is_idchar(ch))) {
-        return state.parse_error("Expected at least one ID characater after $");
+};
+
+// Requires that there is an "identifier character" next in the input text.  (An
+// identifier character is one that can be used in an identifier!)
+class RequireIDChar : public RequireChar<RequireIDChar> {
+  public:
+    explicit RequireIDChar(Parser* parent)
+        : RequireChar(parent, "identifier character")
+    {
     }
-    // Parse any additional characters in the identifier
-    skip_while(&state, "dollar identifier character", is_idchar);
-    *out = state.as_string();
-    return true;
-}
 
-static bool
-parse_regular_identifier(ParseState* parent, std::string* out)
-{
-    ParseState state = parent->attempt("regular identifier");
-    char ch;
-    // Parse the leading identifier character
-    return_if_error(state.get(&ch));
-    if (unlikely(!is_idstart(ch))) {
-        return state.parse_error("Expected a letter or underscore");
+    static bool predicate(char ch)
+    {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+               (ch >= '0' && ch <= '9') || ch == '_' || ch == '.';
     }
-    // Parse any additional characters in the identifier
-    skip_while(&state, "regular identifier character", is_idchar);
-    *out = state.as_string();
-    return true;
-}
+};
 
-static bool
-parse_identifier(ParseState* state, std::string* out)
-{
-    return_if_success(parse_regular_identifier(state, out));
-    return_if_success(parse_dollar_identifier(state, out));
-    return state->parse_error("Expected an identifier");
-}
-
-static bool
-require_token(ParseState* parent, const std::string& expected_str)
-{
-    ParseState expected(expected_str);
-    if (unlikely(parent->remaining() < expected.remaining())) {
-        return parent->parse_error("Expected " + expected_str);
+// Skips over any identifier characters in the input text.
+class SkipIDChar : public SkipWhile<SkipIDChar> {
+  public:
+    explicit SkipIDChar(Parser* parent)
+        : SkipWhile(parent, "identifier character")
+    {
     }
-    ParseState state = parent->attempt(expected_str);
-    while (!expected.eof()) {
-        if (unlikely(state.get() != expected.get())) {
-            return state.parse_error("Expected " + expected_str);
-        }
+
+    static bool predicate(char ch)
+    {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+               (ch >= '0' && ch <= '9') || ch == '_' || ch == '.';
     }
-    return true;
-}
+};
 
-static bool
-parse_process(ParseState* state, const Process** out);
+// Tries to parse a "dollar identifier" (one that starts with a dollar sign).
+// If we succeed, we place the name of the identifier into `out`.  These are
+// used when generating a CSP₀ script programmatically; higher level languages
+// won't provide these as identifiers that the user can use, and so these are
+// available for the generator script to use without having to worry about
+// conflicting with user identifiers.
+class DollarIdentifier : public Parser {
+  public:
+    DollarIdentifier(Parser* parent, std::string* out)
+        : Parser(parent, "dollar identifier")
+    {
+        const char* start = p_;
+        // Parse the leading $
+        return_if_error(attempt<RequireString>("$"));
+        // A $ identifier must contain at least one character after the $
+        return_if_error(attempt<RequireIDChar>());
+        // Parse any additional characters in the identifier
+        attempt<SkipIDChar>();
+        *out = std::string(start, p_ - start);
+    }
+};
 
-static bool
-parse_process_bag(ParseState* parent, Process::Bag* out)
-{
-    ParseState state = parent->attempt("process bag");
-    const Process* process;
+// Requires that there is an "identifier start character" next in the input
+// text.  (This is just like an identifier character, except that identifiers
+// can't start with a number.)
+class RequireIDStart : public RequireChar<RequireIDStart> {
+  public:
+    explicit RequireIDStart(Parser* parent)
+        : RequireChar(parent, "initial identifier character")
+    {
+    }
 
-    return_if_error(require_token(&state, "{"));
-    skip_whitespace(&state);
-    if (parse_process(&state, &process)) {
-        out->insert(std::move(process));
-        skip_whitespace(&state);
-        while (require_token(&state, ",")) {
-            skip_whitespace(&state);
-            if (unlikely(!parse_process(&state, &process))) {
-                return state.parse_error("Expected process after `,`");
-            }
+    static bool predicate(char ch)
+    {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+               ch == '_';
+    }
+};
+
+// Tries to parse a regular identifier (one that doesn't start with a dollar
+// sign).  If we succeed, we place the name of the identifier into `out`.
+class RegularIdentifier : public Parser {
+  public:
+    RegularIdentifier(Parser* parent, std::string* out)
+        : Parser(parent, "regular identifier")
+    {
+        const char* start = p_;
+        // Parse the leading identifier character
+        return_if_error(attempt<RequireIDStart>());
+        // Parse any additional characters in the identifier
+        attempt<SkipIDChar>();
+        *out = std::string(start, p_ - start);
+    }
+};
+
+// Tries to parse an identifier (dollar or regular).  If we succeed, we place
+// the name of the identifier into `out`.
+class Identifier : public Parser {
+  public:
+    Identifier(Parser* parent, std::string* out) : Parser(parent, "identifier")
+    {
+        return_if_success(attempt<RegularIdentifier>(out));
+        return_if_success(attempt<DollarIdentifier>(out));
+        fail();
+    }
+};
+
+// Tries to parse a CSP₀ process.  If we succeed, we use `env` to construct the
+// corresponding hst::Process object, which we then place into `out`.
+//
+// Note that CSP₀ and friends have a fairly deep precedence tree; we implement
+// this using a separate Parser class for each level of the tree.  You probably
+// don't need to care about this if you just need to parse a Process, but if you
+// want to look into the details of how this parser works, that's why there's
+// some extra complexity.
+class Process : public Parser {
+  public:
+    // We have to forward-declare this constructor since all of the per-level
+    // Parsers are mutually recursive.
+    Process(Parser* parent, hst::Environment* env,
+                const hst::Process** out);
+};
+
+// Tries to parse a set of processes.  This is used by the replicated operators
+// to let you (for instance) define an external choice over an arbitrary number
+// of processes.
+class ProcessSet : public Parser {
+  public:
+    ProcessSet(Parser* parent, hst::Environment* env, hst::Process::Set* out)
+        : Parser(parent, "process set")
+    {
+        const hst::Process* process;
+        return_if_error(attempt<RequireString>("{"));
+        return_if_error(attempt<SkipWhitespace>());
+        if (attempt<Process>(env, &process)) {
             out->insert(std::move(process));
-            skip_whitespace(&state);
-        }
-    }
-    return_if_error(require_token(&state, "}"));
-    return true;
-}
-
-static bool
-parse_process_set(ParseState* parent, Process::Set* out)
-{
-    ParseState state = parent->attempt("process set");
-    const Process* process;
-
-    return_if_error(require_token(&state, "{"));
-    skip_whitespace(&state);
-    if (parse_process(&state, &process)) {
-        out->insert(std::move(process));
-        skip_whitespace(&state);
-        while (require_token(&state, ",")) {
-            skip_whitespace(&state);
-            if (unlikely(!parse_process(&state, &process))) {
-                return state.parse_error("Expected process after `,`");
+            return_if_error(attempt<SkipWhitespace>());
+            while (attempt<RequireString>(",")) {
+                return_if_error(attempt<SkipWhitespace>());
+                return_if_error(attempt<Process>(env, &process));
+                out->insert(std::move(process));
+                return_if_error(attempt<SkipWhitespace>());
             }
-            out->insert(std::move(process));
-            skip_whitespace(&state);
         }
+        return_if_error(attempt<RequireString>("}"));
     }
-    return_if_error(require_token(&state, "}"));
-    return true;
-}
+};
+
+// Tries to parse a bag of processes.  A bag is just like a set, but can contain
+// duplicate entries.  The parser logic looks exactly the same as for
+// ProcessSet; the "duplicates are allowed" logic happens down in the
+// Process::Bag::insert() method.
+class ProcessBag : public Parser {
+  public:
+    ProcessBag(Parser* parent, hst::Environment* env, hst::Process::Bag* out)
+        : Parser(parent, "process bag")
+    {
+        const hst::Process* process;
+        return_if_error(attempt<RequireString>("{"));
+        return_if_error(attempt<SkipWhitespace>());
+        if (attempt<Process>(env, &process)) {
+            out->insert(std::move(process));
+            return_if_error(attempt<SkipWhitespace>());
+            while (attempt<RequireString>(",")) {
+                return_if_error(attempt<SkipWhitespace>());
+                return_if_error(attempt<Process>(env, &process));
+                out->insert(std::move(process));
+                return_if_error(attempt<SkipWhitespace>());
+            }
+        }
+        return_if_error(attempt<RequireString>("}"));
+    }
+};
 
 // Precedence order (tightest first)
 //  1. () STOP SKIP
@@ -369,230 +497,237 @@ parse_process_set(ParseState* parent, Process::Set* out)
 // 11. replicated operators (prefix)
 // 12. let
 
-// Each of these numbered parse_process functions corresponds to one of the
-// entries in the precedence order list.
+// Each of these numbered Process classes corresponds to one of the entries in
+// the precedence order list.
 
-static bool
-parse_parenthesized(ParseState* state, const Process** out)
+class ParenthesizedProcess : public Parser {
+  public:
+    ParenthesizedProcess(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "parenthesized process")
+    {
+        return_if_error(attempt<RequireString>("("));
+        return_if_error(attempt<SkipWhitespace>());
+        return_if_error(attempt<Process>(env, out));
+        return_if_error(attempt<SkipWhitespace>());
+        return_if_error(attempt<RequireString>(")"));
+    }
+};
+
+class Stop : public Parser {
+  public:
+    Stop(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "STOP")
+    {
+        return_if_error(attempt<RequireString>("STOP"));
+        *out = env->stop();
+    }
+};
+
+class Skip : public Parser {
+  public:
+    Skip(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "SKIP")
+    {
+        return_if_error(attempt<RequireString>("SKIP"));
+        *out = env->skip();
+    }
+};
+
+class Process1 : public Parser {
+  public:
+    Process1(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process1")
+    {
+        // process1 = (process) | STOP | SKIP
+        return_if_success(attempt<ParenthesizedProcess>(env, out));
+        return_if_success(attempt<Stop>(env, out));
+        return_if_success(attempt<Skip>(env, out));
+        fail();
+    }
+};
+
+class Process2 : public Parser {
+  public:
+    Process2(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process2")
+    {
+        // process2 = process1 | identifier | event → process2
+        return_if_success(attempt<Process1>(env, out));
+
+        std::string id;
+        return_if_error(attempt<Identifier>(&id));
+        return_if_error(attempt<SkipWhitespace>());
+
+        // prefix
+        if (attempt<RequireString>("->") || attempt<RequireString>("→")) {
+            hst::Event initial(id);
+            const hst::Process* after;
+            return_if_error(attempt<SkipWhitespace>());
+            return_if_error(attempt<Process2>(env, &after));
+            *out = env->prefix(initial, std::move(after));
+            return;
+        }
+
+        fail();
+    }
+};
+
+class Process3 : public Parser {
+  public:
+    Process3(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process3")
+    {
+        // process3 = process2 (; process3)?
+
+        const hst::Process* lhs = nullptr;
+        return_if_error(attempt<Process2>(env, &lhs));
+        return_if_error(attempt<SkipWhitespace>());
+        if (!attempt<RequireString>(";")) {
+            *out = std::move(lhs);
+            return;
+        }
+
+        return_if_error(attempt<SkipWhitespace>());
+        const hst::Process* rhs = nullptr;
+        return_if_error(attempt<Process3>(env, &rhs));
+        *out = env->sequential_composition(std::move(lhs), std::move(rhs));
+    }
+};
+
+#define Process5 Process3  // NIY
+
+class Process6 : public Parser {
+  public:
+    Process6(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process6")
+    {
+        // process6 = process5 (⊓ process6)?
+        const hst::Process* lhs = nullptr;
+        return_if_error(attempt<Process5>(env, &lhs));
+        return_if_error(attempt<SkipWhitespace>());
+        if (!attempt<RequireString>("[]") && !attempt<RequireString>("□")) {
+            *out = std::move(lhs);
+            return;
+        }
+
+        return_if_error(attempt<SkipWhitespace>());
+        const hst::Process* rhs = nullptr;
+        return_if_error(attempt<Process6>(env, &rhs));
+        *out = env->external_choice(std::move(lhs), std::move(rhs));
+    }
+};
+
+class Process7 : public Parser {
+  public:
+    Process7(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process7")
+    {
+        // process7 = process6 (⊓ process7)?
+        const hst::Process* lhs = nullptr;
+        return_if_error(attempt<Process6>(env, &lhs));
+        return_if_error(attempt<SkipWhitespace>());
+        if (!attempt<RequireString>("|~|") && !attempt<RequireString>("⊓")) {
+            *out = std::move(lhs);
+            return;
+        }
+
+        return_if_error(attempt<SkipWhitespace>());
+        const hst::Process* rhs = nullptr;
+        return_if_error(attempt<Process7>(env, &rhs));
+        *out = env->internal_choice(std::move(lhs), std::move(rhs));
+    }
+};
+
+#define Process8 Process7  // NIY
+
+class Process9 : public Parser {
+  public:
+    Process9(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process9")
+    {
+        // process9 = process8 (⫴ process9)?
+        const hst::Process* lhs = nullptr;
+        return_if_error(attempt<Process8>(env, &lhs));
+        return_if_error(attempt<SkipWhitespace>());
+        if (!attempt<RequireString>("|||") && !attempt<RequireString>("⫴")) {
+            *out = std::move(lhs);
+            return;
+        }
+
+        return_if_error(attempt<SkipWhitespace>());
+        const hst::Process* rhs = nullptr;
+        return_if_error(attempt<Process9>(env, &rhs));
+        *out = env->interleave(std::move(lhs), std::move(rhs));
+    }
+};
+
+#define Process10 Process9  // NIY
+
+class Process11 : public Parser {
+  public:
+    Process11(Parser* parent, hst::Environment* env, const hst::Process** out)
+        : Parser(parent, "process11")
+    {
+        // process11 = process10 | □ {process} | ⊓ {process}
+
+        // □ {process}
+        if (attempt<RequireString>("[]") || attempt<RequireString>("□")) {
+            return_if_error(attempt<SkipWhitespace>());
+            hst::Process::Set processes;
+            return_if_error(attempt<ProcessSet>(env, &processes));
+            *out = env->external_choice(std::move(processes));
+            return;
+        }
+
+        // ⊓ {process}
+        if (attempt<RequireString>("|~|") || attempt<RequireString>("⊓")) {
+            return_if_error(attempt<SkipWhitespace>());
+            hst::Process::Set processes;
+            return_if_error(attempt<ProcessSet>(env, &processes));
+            *out = env->internal_choice(std::move(processes));
+            return;
+        }
+
+        // ⫴ {process}
+        if (attempt<RequireString>("|||") || attempt<RequireString>("⫴")) {
+            return_if_error(attempt<SkipWhitespace>());
+            hst::Process::Bag processes;
+            return_if_error(attempt<ProcessBag>(env, &processes));
+            *out = env->interleave(std::move(processes));
+            return;
+        }
+
+        return_if_error(attempt<Process10>(env, out));
+    }
+};
+
+// Now that we have all of our per-level Parsers defined, we just have to
+// delegate to the top level of the precedence tree to parse a Process.
+Process::Process(Parser* parent, hst::Environment* env,
+                 const hst::Process** out)
+    : Parser(parent, "process")
 {
-    return_if_error(require_token(state, "("));
-    skip_whitespace(state);
-    return_if_error(parse_process(state, out));
-    skip_whitespace(state);
-    return_if_error(require_token(state, ")"));
-    return true;
+    return_if_error(attempt<Process11>(env, out));
 }
 
-static bool
-parse_stop(ParseState* state, const Process** out)
-{
-    return_if_error(require_token(state, "STOP"));
-    *out = state->env()->stop();
-    return true;
-}
+}  // namespace
 
-static bool
-parse_skip(ParseState* state, const Process** out)
-{
-    return_if_error(require_token(state, "SKIP"));
-    *out = state->env()->skip();
-    return true;
-}
-
-static bool
-parse_process1(ParseState* parent, const Process** out)
-{
-    // process1 = (process) | STOP | SKIP
-    ParseState state = parent->attempt("process1");
-    return_if_success(parse_parenthesized(&state, out));
-    return_if_success(parse_stop(&state, out));
-    return_if_success(parse_skip(&state, out));
-    return state.parse_error("Expected (, STOP, or SKIP");
-}
-
-static bool
-parse_process2(ParseState* parent, const Process** out)
-{
-    // process2 = process1 | identifier | event → process2
-    return_if_success(parse_process1(parent, out));
-
-    ParseState state = parent->attempt("process2");
-    std::string id;
-    return_if_error(parse_identifier(&state, &id));
-    skip_whitespace(&state);
-
-    // prefix
-    if (require_token(&state, "->") || require_token(&state, "→")) {
-        Event initial(id);
-        const Process* after;
-        skip_whitespace(&state);
-        return_if_error(parse_process2(&state, &after));
-        *out = state.env()->prefix(initial, std::move(after));
-        return true;
-    }
-
-    return state.parse_error("Undefined process " + id);
-}
-
-static bool
-parse_process3(ParseState* parent, const Process** out)
-{
-    // process3 = process2 (; process3)?
-
-    const Process* lhs;
-    return_if_error(parse_process2(parent, &lhs));
-
-    ParseState state = parent->attempt("process3");
-    skip_whitespace(&state);
-    if (!require_token(&state, ";")) {
-        *out = std::move(lhs);
-        return true;
-    }
-
-    skip_whitespace(&state);
-    const Process* rhs;
-    return_if_error(parse_process3(&state, &rhs));
-    *out = state.env()->sequential_composition(std::move(lhs), std::move(rhs));
-    return true;
-}
-
-#define parse_process5 parse_process3  // NIY
-
-static bool
-parse_process6(ParseState* parent, const Process** out)
-{
-    const Process* lhs;
-    // process6 = process5 (⊓ process6)?
-    return_if_error(parse_process5(parent, &lhs));
-
-    ParseState state = parent->attempt("process6");
-    skip_whitespace(&state);
-    if (!require_token(&state, "[]") && !require_token(&state, "□")) {
-        *out = std::move(lhs);
-        return true;
-    }
-    skip_whitespace(&state);
-    const Process* rhs;
-    if (!parse_process6(&state, &rhs) != 0) {
-        // Expected process after ⊓
-        return state.parse_error("Expected process after □");
-    }
-
-    *out = state.env()->external_choice(
-            Process::Set{std::move(lhs), std::move(rhs)});
-    return true;
-}
-
-static bool
-parse_process7(ParseState* parent, const Process** out)
-{
-    const Process* lhs;
-    // process7 = process6 (⊓ process7)?
-    return_if_error(parse_process6(parent, &lhs));
-
-    ParseState state = parent->attempt("process7");
-    skip_whitespace(&state);
-    if (!require_token(&state, "|~|") && !require_token(&state, "⊓")) {
-        *out = std::move(lhs);
-        return true;
-    }
-    skip_whitespace(&state);
-    const Process* rhs;
-    if (!parse_process7(&state, &rhs) != 0) {
-        // Expected process after ⊓
-        return state.parse_error("Expected process after ⊓");
-    }
-
-    *out = state.env()->internal_choice(
-            Process::Set{std::move(lhs), std::move(rhs)});
-    return true;
-}
-
-#define parse_process8 parse_process7  // NIY
-
-static bool
-parse_process9(ParseState* parent, const Process** out)
-{
-    const Process* lhs;
-    // process9 = process8 (⊓ process9)?
-    return_if_error(parse_process8(parent, &lhs));
-
-    ParseState state = parent->attempt("process9");
-    skip_whitespace(&state);
-    if (!require_token(&state, "|||") && !require_token(&state, "⫴")) {
-        *out = std::move(lhs);
-        return true;
-    }
-    skip_whitespace(&state);
-    const Process* rhs;
-    if (!parse_process9(&state, &rhs) != 0) {
-        // Expected process after ⫴
-        return state.parse_error("Expected process after ⫴");
-    }
-
-    *out = state.env()->interleave(
-            Process::Bag{std::move(lhs), std::move(rhs)});
-    return true;
-}
-
-#define parse_process10 parse_process9  // NIY
-
-static bool
-parse_process11(ParseState* parent, const Process** out)
-{
-    // process11 = process10 | □ {process} | ⊓ {process}
-    ParseState state = parent->attempt("process11");
-
-    // □ {process}
-    if (require_token(&state, "[]") || require_token(&state, "□")) {
-        skip_whitespace(&state);
-        Process::Set processes;
-        return_if_error(parse_process_set(&state, &processes));
-        *out = state.env()->external_choice(std::move(processes));
-        return true;
-    }
-
-    // ⊓ {process}
-    if (require_token(&state, "|~|") || require_token(&state, "⊓")) {
-        skip_whitespace(&state);
-        Process::Set processes;
-        return_if_error(parse_process_set(&state, &processes));
-        *out = state.env()->internal_choice(std::move(processes));
-        return true;
-    }
-
-    // ⫴ {process}
-    if (require_token(&state, "|||") || require_token(&state, "⫴")) {
-        skip_whitespace(&state);
-        Process::Bag processes;
-        return_if_error(parse_process_bag(&state, &processes));
-        *out = state.env()->interleave(std::move(processes));
-        return true;
-    }
-
-    // process10
-    return parse_process10(&state, out);
-}
-
-static bool
-parse_process(ParseState* state, const Process** out)
-{
-    return parse_process11(state, out);
-}
+namespace hst {
 
 const Process*
 load_csp0_string(Environment* env, const std::string& csp0, ParseError* error)
 {
-    ParseState state(env, csp0, error);
-    skip_whitespace(&state);
     debug() << "--- " << csp0;
+    Parser parser(csp0);
+    parser.attempt<SkipWhitespace>();
     const Process* result;
-    if (unlikely(!parse_process(&state, &result))) {
+    if (unlikely(!parser.attempt<::Process>(env, &result))) {
+        error->set_message("Error parsing CSP₀");
         return nullptr;
     }
-    skip_whitespace(&state);
-    if (unlikely(!state.eof())) {
-        state.parse_error("Unexpected characters at end of input");
+    parser.attempt<SkipWhitespace>();
+    if (unlikely(!parser.eof())) {
+        error->set_message("Unexpected characters at end of input");
         return nullptr;
     }
     return std::move(result);
