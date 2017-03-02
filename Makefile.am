@@ -29,6 +29,8 @@ libhst_la_SOURCES = \
 	src/hst/prenormalize.cc \
 	src/hst/process.h \
 	src/hst/process.cc \
+	src/hst/semantic-models.h \
+	src/hst/semantic-models.cc \
 	src/hst/sequential-composition.cc
 
 hst_SOURCES = \
