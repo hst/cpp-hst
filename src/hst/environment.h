@@ -32,11 +32,19 @@ class Environment {
     const Process* skip() const { return skip_; }
     const Process* stop() const { return stop_; }
     const NormalizedProcess* prenormalize(const Process* p);
+    template <typename Model>
+    const NormalizedProcess* normalize(const NormalizedProcess* root);
 
     // These will typically only be used internally or in test cases.
     RecursiveProcess*
     recursive_process(RecursionScope::ID scope, const std::string& name);
     const NormalizedProcess* prenormalize(Process::Set ps);
+
+    // This should only be used in test cases!  `processes` must be a full
+    // equivalence class within the normalization.
+    template <typename Model>
+    const NormalizedProcess*
+    normalize(const NormalizedProcess* root, Process::Set processes);
 
     // Ensures that there is exactly one process in the registry equal to
     // `process`, returning a pointer to that process.

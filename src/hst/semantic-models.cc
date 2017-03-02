@@ -8,6 +8,7 @@
 #include "hst/semantic-models.h"
 
 #include "hst/event.h"
+#include "hst/hash.h"
 #include "hst/process.h"
 
 namespace hst {
