@@ -5,6 +5,7 @@
  * -----------------------------------------------------------------------------
  */
 
+#include <assert.h>
 #include <initializer_list>
 #include <sstream>
 #include <string>
@@ -20,6 +21,7 @@
 
 using hst::Environment;
 using hst::Event;
+using hst::NormalizedProcess;
 using hst::ParseError;
 using hst::Process;
 using hst::Traces;
@@ -133,6 +135,22 @@ check_traces_behavior(const std::string& csp0,
     const Process* process = require_csp0(&env, csp0);
     Traces::Behavior actual = Traces::get_process_behavior(*process);
     check_eq(actual, events_from_names(expected));
+}
+
+// Verify the set of non-normalized processes that a normalized process expands
+// to.
+void
+check_expansion(const std::string& csp0,
+                std::initializer_list<const std::string> expected)
+{
+    Environment env;
+    const Process* process = require_csp0(&env, csp0);
+    const NormalizedProcess* normalized =
+            dynamic_cast<const NormalizedProcess*>(process);
+    assert(normalized);
+    Process::Set actual;
+    normalized->expand(&actual);
+    check_eq(actual, require_csp0_set(&env, expected));
 }
 
 }  // namespace
@@ -506,6 +524,7 @@ TEST_CASE("prenormalize {a → STOP}")
     check_reachable(p, {"prenormalize {a → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_expansion(p, {"a → STOP"});
 }
 
 TEST_CASE("prenormalize {a → STOP □ b → STOP}")
@@ -520,6 +539,7 @@ TEST_CASE("prenormalize {a → STOP □ b → STOP}")
             p, {"prenormalize {a → STOP □ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ b → STOP}"});
     check_traces_behavior(p, {"a", "b"});
+    check_expansion(p, {"a → STOP □ b → STOP"});
 }
 
 TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
@@ -534,6 +554,7 @@ TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
                      "prenormalize {STOP, b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ a → b → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_expansion(p, {"a → STOP □ a → b → STOP"});
 }
 
 TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
@@ -548,6 +569,7 @@ TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
             p, {"prenormalize {a → STOP ⊓ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP ⊓ b → STOP}"});
     check_traces_behavior(p, {"a", "b"});
+    check_expansion(p, {"a → STOP ⊓ b → STOP", "a → STOP", "b → STOP"});
 }
 
 TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
@@ -562,4 +584,5 @@ TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
                      "prenormalize {SKIP ; b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → SKIP ; b → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_expansion(p, {"a → SKIP ; b → STOP"});
 }

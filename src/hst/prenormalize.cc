@@ -27,6 +27,7 @@ class Prenormalization : public NormalizedProcess {
 
     void initials(Event::Set* out) const override;
     const NormalizedProcess* after(Event initial) const override;
+    void expand(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -82,6 +83,12 @@ Prenormalization::after(Event initial) const
     // Since a normalized process can only have one `after` for any event, merge
     // together all of the possible afters into a single prenormalized process.
     return env_->prenormalize(std::move(afters));
+}
+
+void
+Prenormalization::expand(Process::Set* out) const
+{
+    out->insert(ps_.begin(), ps_.end());
 }
 
 std::size_t
