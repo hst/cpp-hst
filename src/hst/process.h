@@ -94,6 +94,10 @@ class NormalizedProcess : public Process {
   public:
     virtual const NormalizedProcess* after(Event initial) const = 0;
     void afters(Event initial, Set* out) const final;
+
+    // Returns the set of non-normalized processes that this normalized process
+    // represents.
+    virtual void expand(Process::Set* out) const = 0;
 };
 
 class Process::Bag : public std::unordered_multiset<const Process*> {
