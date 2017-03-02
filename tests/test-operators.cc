@@ -16,11 +16,13 @@
 #include "hst/environment.h"
 #include "hst/event.h"
 #include "hst/process.h"
+#include "hst/semantic-models.h"
 
 using hst::Environment;
 using hst::Event;
 using hst::ParseError;
 using hst::Process;
+using hst::Traces;
 
 // The test cases in this file verify that we've implemented each of the CSP
 // operators correctly: specifically, that they have the right "initials" and
@@ -123,6 +125,16 @@ check_tau_closure(const std::string& csp0,
     check_eq(actual, require_csp0_set(&env, expected));
 }
 
+void
+check_traces_behavior(const std::string& csp0,
+                      std::initializer_list<const std::string> expected)
+{
+    Environment env;
+    const Process* process = require_csp0(&env, csp0);
+    Traces::Behavior actual = Traces::get_process_behavior(*process);
+    check_eq(actual, events_from_names(expected));
+}
+
 }  // namespace
 
 TEST_CASE_GROUP("process comparisons");
@@ -165,6 +177,7 @@ TEST_CASE("STOP □ STOP")
     check_afters(p, "a", {});
     check_reachable(p, {"STOP □ STOP"});
     check_tau_closure(p, {"STOP □ STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
@@ -179,6 +192,7 @@ TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
                         "a → STOP □ b → STOP", "a → STOP □ c → STOP", "STOP"});
     check_tau_closure(p, {"(a → STOP) □ (b → STOP ⊓ c → STOP)",
                           "a → STOP □ b → STOP", "a → STOP □ c → STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP)")
@@ -191,6 +205,7 @@ TEST_CASE("(a → STOP) □ (b → STOP)")
     check_afters(p, "τ", {});
     check_reachable(p, {"(a → STOP) □ (b → STOP)", "STOP"});
     check_tau_closure(p, {"(a → STOP) □ (b → STOP)"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
@@ -204,6 +219,7 @@ TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
     check_afters(p, "τ", {});
     check_reachable(p, {"□ {a → STOP, b → STOP, c → STOP}", "STOP"});
     check_tau_closure(p, {"□ {a → STOP, b → STOP, c → STOP}"});
+    check_traces_behavior(p, {"a", "b", "c"});
 }
 
 TEST_CASE_GROUP("interleaving");
@@ -218,6 +234,7 @@ TEST_CASE("STOP ⫴ STOP")
     check_afters(p, "τ", {});
     check_reachable(p, {"STOP ⫴ STOP", "STOP"});
     check_tau_closure(p, {"STOP ⫴ STOP"});
+    check_traces_behavior(p, {"✔"});
 }
 
 TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
@@ -235,6 +252,7 @@ TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
                 "a → STOP ⫴ STOP", "STOP ⫴ STOP", "STOP"});
     check_tau_closure(p, {"(a → STOP) ⫴ (b → STOP ⊓ c → STOP)",
                           "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("a → STOP ⫴ a → STOP")
@@ -248,6 +266,7 @@ TEST_CASE("a → STOP ⫴ a → STOP")
     check_reachable(p, {"a → STOP ⫴ a → STOP", "a → STOP ⫴ STOP", "STOP ⫴ STOP",
                         "STOP"});
     check_tau_closure(p, {"a → STOP ⫴ a → STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("a → STOP ⫴ b → STOP")
@@ -261,6 +280,7 @@ TEST_CASE("a → STOP ⫴ b → STOP")
     check_reachable(p, {"a → STOP ⫴ b → STOP", "a → STOP ⫴ STOP",
                         "STOP ⫴ b → STOP", "STOP ⫴ STOP", "STOP"});
     check_tau_closure(p, {"a → STOP ⫴ b → STOP"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("a → SKIP ⫴ b → SKIP")
@@ -276,6 +296,7 @@ TEST_CASE("a → SKIP ⫴ b → SKIP")
                         "a → SKIP ⫴ STOP", "SKIP ⫴ b → SKIP", "STOP ⫴ b → SKIP",
                         "STOP ⫴ SKIP", "STOP ⫴ STOP", "SKIP ⫴ SKIP", "STOP"});
     check_tau_closure(p, {"a → SKIP ⫴ b → SKIP"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
@@ -293,6 +314,7 @@ TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
                 "(STOP ⫴ SKIP) ; c → STOP", "(STOP ⫴ STOP) ; c → STOP",
                 "(SKIP ⫴ SKIP) ; c → STOP", "c → STOP", "STOP"});
     check_tau_closure(p, {"(a → SKIP ⫴ b → SKIP) ; c → STOP"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
@@ -311,6 +333,7 @@ TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
              "⫴ {STOP, STOP, a → STOP}", "⫴ {STOP, STOP, b → STOP}",
              "⫴ {STOP, STOP, c → STOP}", "⫴ {STOP, STOP, STOP}", "STOP"});
     check_tau_closure(p, {"⫴ {a → STOP, b → STOP, c → STOP}"});
+    check_traces_behavior(p, {"a", "b", "c"});
 }
 
 TEST_CASE_GROUP("internal choice");
@@ -324,6 +347,7 @@ TEST_CASE("STOP ⊓ STOP")
     check_afters(p, "a", {});
     check_reachable(p, {"STOP ⊓ STOP", "STOP"});
     check_tau_closure(p, {"STOP ⊓ STOP", "STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE("(a → STOP) ⊓ (b → STOP)")
@@ -336,6 +360,7 @@ TEST_CASE("(a → STOP) ⊓ (b → STOP)")
     check_reachable(
             p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP", "STOP"});
     check_tau_closure(p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
@@ -349,6 +374,7 @@ TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
                         "b → STOP", "c → STOP", "STOP"});
     check_tau_closure(p, {"⊓ {a → STOP, b → STOP, c → STOP}", "a → STOP",
                           "b → STOP", "c → STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE_GROUP("prefix");
@@ -362,6 +388,7 @@ TEST_CASE("a → STOP")
     check_afters(p, "τ", {});
     check_reachable(p, {"a → STOP", "STOP"});
     check_tau_closure(p, {"a → STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("a → b → STOP")
@@ -373,6 +400,7 @@ TEST_CASE("a → b → STOP")
     check_afters(p, "τ", {});
     check_reachable(p, {"a → b → STOP", "b → STOP", "STOP"});
     check_tau_closure(p, {"a → b → STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE_GROUP("SKIP");
@@ -387,6 +415,7 @@ TEST_CASE("SKIP")
     check_afters(skip, "✔", {"STOP"});
     check_reachable(skip, {"SKIP", "STOP"});
     check_tau_closure(skip, {"SKIP"});
+    check_traces_behavior(skip, {"✔"});
 }
 
 TEST_CASE_GROUP("STOP");
@@ -400,6 +429,7 @@ TEST_CASE("STOP")
     check_afters(stop, "τ", {});
     check_reachable(stop, {"STOP"});
     check_tau_closure(stop, {"STOP"});
+    check_traces_behavior(stop, {});
 }
 
 TEST_CASE_GROUP("sequential composition");
@@ -415,6 +445,7 @@ TEST_CASE("SKIP ; STOP")
     check_afters(p, "✔", {});
     check_reachable(p, {"SKIP ; STOP", "STOP"});
     check_tau_closure(p, {"SKIP ; STOP", "STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE("a → SKIP ; STOP")
@@ -428,6 +459,7 @@ TEST_CASE("a → SKIP ; STOP")
     check_afters(p, "✔", {});
     check_reachable(p, {"a → SKIP ; STOP", "SKIP ; STOP", "STOP"});
     check_tau_closure(p, {"a → SKIP ; STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
@@ -442,6 +474,7 @@ TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
     check_reachable(p, {"(a → b → STOP □ SKIP) ; STOP", "b → STOP ; STOP",
                         "STOP ; STOP", "STOP"});
     check_tau_closure(p, {"(a → b → STOP □ SKIP) ; STOP", "STOP"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
@@ -458,6 +491,7 @@ TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
                      "SKIP ; STOP", "b → STOP ; STOP", "STOP ; STOP", "STOP"});
     check_tau_closure(p, {"(a → b → STOP ⊓ SKIP) ; STOP", "a → b → STOP ; STOP",
                           "SKIP ; STOP", "STOP"});
+    check_traces_behavior(p, {});
 }
 
 TEST_CASE_GROUP("prenormalization");
@@ -471,6 +505,7 @@ TEST_CASE("prenormalize {a → STOP}")
     check_afters(p, "τ", {});
     check_reachable(p, {"prenormalize {a → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP}"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("prenormalize {a → STOP □ b → STOP}")
@@ -484,6 +519,7 @@ TEST_CASE("prenormalize {a → STOP □ b → STOP}")
     check_reachable(
             p, {"prenormalize {a → STOP □ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ b → STOP}"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
@@ -497,6 +533,7 @@ TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
                     {"prenormalize {a → STOP □ a → b → STOP}",
                      "prenormalize {STOP, b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ a → b → STOP}"});
+    check_traces_behavior(p, {"a"});
 }
 
 TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
@@ -510,6 +547,7 @@ TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
     check_reachable(
             p, {"prenormalize {a → STOP ⊓ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP ⊓ b → STOP}"});
+    check_traces_behavior(p, {"a", "b"});
 }
 
 TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
@@ -523,4 +561,5 @@ TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
                     {"prenormalize {a → SKIP ; b → STOP}",
                      "prenormalize {SKIP ; b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → SKIP ; b → STOP}"});
+    check_traces_behavior(p, {"a"});
 }
