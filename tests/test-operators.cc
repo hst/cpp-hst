@@ -421,6 +421,30 @@ TEST_CASE("a → b → STOP")
     check_traces_behavior(p, {"a"});
 }
 
+TEST_CASE_GROUP("recursion");
+
+TEST_CASE("let X=a → STOP within X")
+{
+    auto p = "let X=a → STOP within X";
+    check_name(p, "whomp");  //"let X=a → STOP within X");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"STOP"});
+    check_reachable(p, {"X@0", "STOP"});
+    check_tau_closure(p, {"X@0"});
+    check_traces_behavior(p, {"a"});
+}
+
+TEST_CASE("let X=a → Y Y=b → X within X")
+{
+    auto p = "let X=a → Y Y=b → X within X";
+    check_name(p, "whomp");  //"let X=a → Y Y=b → X within X");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"Y@0"});
+    check_reachable(p, {"X@0", "Y@0"});
+    check_tau_closure(p, {"X@0"});
+    check_traces_behavior(p, {"a"});
+}
+
 TEST_CASE_GROUP("SKIP");
 
 TEST_CASE("SKIP")
