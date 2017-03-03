@@ -46,8 +46,7 @@ class Interleave : public Process {
 const Process*
 Environment::interleave(Process::Bag ps)
 {
-    return register_process(
-            std::unique_ptr<Process>(new Interleave(this, std::move(ps))));
+    return register_process(new Interleave(this, std::move(ps)));
 }
 
 const Process*

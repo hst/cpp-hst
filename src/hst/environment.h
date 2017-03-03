@@ -32,6 +32,11 @@ class Environment {
     const NormalizedProcess* prenormalize(const Process* p);
     const NormalizedProcess* prenormalize(Process::Set ps);
 
+    // Ensures that there is exactly one process in the registry equal to
+    // `process`, returning a pointer to that process.
+    template <typename T>
+    T* register_process(T* process);
+
   private:
     struct deref_hash {
         std::size_t operator()(const std::unique_ptr<Process>& ptr) const
@@ -51,16 +56,22 @@ class Environment {
     using Registry = std::unordered_set<std::unique_ptr<Process>, deref_hash,
                                         deref_key_equal>;
 
-    // Ensures that there is exactly one process in the registry equal to
-    // `process`, returning a pointer to that process.
-    const Process* register_process(std::unique_ptr<Process> process);
-    const NormalizedProcess*
-    register_process(std::unique_ptr<NormalizedProcess> process);
-
     Registry registry_;
     const Process* skip_;
     const Process* stop_;
 };
+
+template <typename T>
+T*
+Environment::register_process(T* process)
+{
+    std::unique_ptr<T> owned(process);
+    auto result = registry_.insert(std::move(owned));
+    // This static_cast is safe, even if we're returning an existing process
+    // from the registry, since we've already verified that whatever we return
+    // is equal to `process`.
+    return static_cast<T*>(result.first->get());
+}
 
 }  // namespace hst
 #endif  // HST_ENVIRONMENT_H

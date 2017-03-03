@@ -38,8 +38,7 @@ class InternalChoice : public Process {
 const Process*
 Environment::internal_choice(Process::Set ps)
 {
-    return register_process(
-            std::unique_ptr<Process>(new InternalChoice(std::move(ps))));
+    return register_process(new InternalChoice(std::move(ps)));
 }
 
 const Process*

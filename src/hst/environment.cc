@@ -119,22 +119,8 @@ Stop::print(std::ostream& out) const
 
 Environment::Environment()
 {
-    stop_ = register_process(std::unique_ptr<Process>(new Stop));
-    skip_ = register_process(std::unique_ptr<Process>(new Skip(stop_)));
-}
-
-const Process*
-Environment::register_process(std::unique_ptr<Process> process)
-{
-    auto result = registry_.insert(std::move(process));
-    return result.first->get();
-}
-
-const NormalizedProcess*
-Environment::register_process(std::unique_ptr<NormalizedProcess> process)
-{
-    auto result = registry_.insert(std::move(process));
-    return static_cast<const NormalizedProcess*>(result.first->get());
+    stop_ = register_process(new Stop);
+    skip_ = register_process(new Skip(stop_));
 }
 
 }  // namespace hst
