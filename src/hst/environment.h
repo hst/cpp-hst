@@ -12,6 +12,7 @@
 
 #include "hst/event.h"
 #include "hst/process.h"
+#include "hst/recursion.h"
 
 namespace hst {
 
@@ -26,10 +27,15 @@ class Environment {
     const Process* internal_choice(const Process* p, const Process* q);
     const Process* internal_choice(Process::Set ps);
     const Process* prefix(Event a, const Process* p);
+    RecursionScope recursion();
     const Process* sequential_composition(const Process* p, const Process* q);
     const Process* skip() const { return skip_; }
     const Process* stop() const { return stop_; }
     const NormalizedProcess* prenormalize(const Process* p);
+
+    // These will typically only be used internally or in test cases.
+    RecursiveProcess*
+    recursive_process(RecursionScope::ID scope, const std::string& name);
     const NormalizedProcess* prenormalize(Process::Set ps);
 
     // Ensures that there is exactly one process in the registry equal to
@@ -59,6 +65,7 @@ class Environment {
     Registry registry_;
     const Process* skip_;
     const Process* stop_;
+    RecursionScope::ID next_recursion_scope_ = 0;
 };
 
 template <typename T>

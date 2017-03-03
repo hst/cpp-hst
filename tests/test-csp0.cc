@@ -87,6 +87,16 @@ TEST_CASE("can parse identifiers")
     check_csp0_invalid("$ → STOP");
 }
 
+TEST_CASE("can parse debug recursion identifiers")
+{
+    // Parse a bunch of valid identifiers.
+    check_csp0_valid("let X = a → STOP within X@0");
+    check_csp0_valid("let X = let Y = a → STOP within X@1 within STOP");
+    // Fail to parse a bunch of invalid identifiers.
+    check_csp0_invalid("let X = a → STOP within X@");
+    check_csp0_invalid("let X = a → STOP within X@X");
+}
+
 TEST_CASE_GROUP("CSP₀ primitives");
 
 TEST_CASE("parse: STOP")
@@ -397,6 +407,39 @@ TEST_CASE("parse: a → SKIP ; STOP")
     check_csp0_invalid("SKIP;");
     check_csp0_invalid("SKIP ;");
     check_csp0_invalid("SKIP ; ");
+}
+
+TEST_CASE("parse: let X = a → STOP within X")
+{
+    // Verify that we can parse the process, with and without whitespace.
+    check_csp0_valid("let X=a→STOP within X");
+    check_csp0_valid(" let X=a→STOP within X");
+    check_csp0_valid(" let X =a→STOP within X");
+    check_csp0_valid(" let X = a→STOP within X");
+    check_csp0_valid(" let X = a →STOP within X");
+    check_csp0_valid(" let X = a → STOP within X");
+    check_csp0_valid(" let X = a → STOP within X ");
+    // Fail to parse a bunch of invalid statements.
+    // missing process definition
+    check_csp0_invalid("let within X");
+    // undefined process
+    check_csp0_invalid("let X = a → Y within X");
+}
+
+TEST_CASE("parse: let X = a → Y Y = b → X within X")
+{
+    // Verify that we can parse the process, with and without whitespace.
+    check_csp0_valid("let X=a→Y Y=b→X within X");
+    check_csp0_valid(" let X=a→Y Y=b→X within X");
+    check_csp0_valid(" let X =a→Y Y=b→X within X");
+    check_csp0_valid(" let X = a→Y Y=b→X within X");
+    check_csp0_valid(" let X = a →Y Y=b→X within X");
+    check_csp0_valid(" let X = a → Y Y=b→X within X");
+    check_csp0_valid(" let X = a → Y Y =b→X within X");
+    check_csp0_valid(" let X = a → Y Y = b→X within X");
+    check_csp0_valid(" let X = a → Y Y = b →X within X");
+    check_csp0_valid(" let X = a → Y Y = b → X within X");
+    check_csp0_valid(" let X = a → Y Y = b → X within X ");
 }
 
 TEST_CASE("associativity: a → SKIP ; b → SKIP ; c → SKIP")

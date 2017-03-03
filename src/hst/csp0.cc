@@ -15,6 +15,7 @@
 #include "hst/environment.h"
 #include "hst/event.h"
 #include "hst/process.h"
+#include "hst/recursion.h"
 
 //------------------------------------------------------------------------------
 // Debugging nonsense
@@ -312,9 +313,39 @@ class SkipWhile : public Parser {
 class SkipWhitespace : public SkipWhile<SkipWhitespace> {
   public:
     explicit SkipWhitespace(Parser* parent) : SkipWhile(parent, "whitespace") {}
-    static bool predicate(char ch) {
+    static bool predicate(char ch)
+    {
         return ch == ' ' || ch == '\f' || ch == '\n' || ch == '\r' ||
                ch == '\t' || ch == '\v';
+    }
+};
+
+// Skips over any digits in the input text.
+class SkipDigits : public SkipWhile<SkipDigits> {
+  public:
+    explicit SkipDigits(Parser* parent) : SkipWhile(parent, "digits") {}
+    static bool predicate(char ch) { return ch >= '0' && ch <= '9'; }
+};
+
+// Parses a positive integer.
+template <typename T>
+class Integer : public Parser {
+  public:
+    Integer(Parser* parent, T* out) : Parser(parent, "integer")
+    {
+        const char* start = p_;
+        return_if_error(attempt<SkipDigits>());
+        if (start == p_) {
+            // Expected a digit
+            fail();
+            return;
+        }
+        T result = 0;
+        for (const char* ch = start; ch < p_; ++ch) {
+            result *= 10;
+            result += (*ch - '0');
+        }
+        *out = result;
     }
 };
 
@@ -428,8 +459,8 @@ class Process : public Parser {
   public:
     // We have to forward-declare this constructor since all of the per-level
     // Parsers are mutually recursive.
-    Process(Parser* parent, hst::Environment* env,
-                const hst::Process** out);
+    Process(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+            const hst::Process** out);
 };
 
 // Tries to parse a set of processes.  This is used by the replicated operators
@@ -437,18 +468,19 @@ class Process : public Parser {
 // of processes.
 class ProcessSet : public Parser {
   public:
-    ProcessSet(Parser* parent, hst::Environment* env, hst::Process::Set* out)
+    ProcessSet(Parser* parent, hst::Environment* env,
+               hst::RecursionScope* scope, hst::Process::Set* out)
         : Parser(parent, "process set")
     {
         const hst::Process* process;
         return_if_error(attempt<RequireString>("{"));
         return_if_error(attempt<SkipWhitespace>());
-        if (attempt<Process>(env, &process)) {
+        if (attempt<Process>(env, scope, &process)) {
             out->insert(std::move(process));
             return_if_error(attempt<SkipWhitespace>());
             while (attempt<RequireString>(",")) {
                 return_if_error(attempt<SkipWhitespace>());
-                return_if_error(attempt<Process>(env, &process));
+                return_if_error(attempt<Process>(env, scope, &process));
                 out->insert(std::move(process));
                 return_if_error(attempt<SkipWhitespace>());
             }
@@ -463,18 +495,19 @@ class ProcessSet : public Parser {
 // Process::Bag::insert() method.
 class ProcessBag : public Parser {
   public:
-    ProcessBag(Parser* parent, hst::Environment* env, hst::Process::Bag* out)
+    ProcessBag(Parser* parent, hst::Environment* env,
+               hst::RecursionScope* scope, hst::Process::Bag* out)
         : Parser(parent, "process bag")
     {
         const hst::Process* process;
         return_if_error(attempt<RequireString>("{"));
         return_if_error(attempt<SkipWhitespace>());
-        if (attempt<Process>(env, &process)) {
+        if (attempt<Process>(env, scope, &process)) {
             out->insert(std::move(process));
             return_if_error(attempt<SkipWhitespace>());
             while (attempt<RequireString>(",")) {
                 return_if_error(attempt<SkipWhitespace>());
-                return_if_error(attempt<Process>(env, &process));
+                return_if_error(attempt<Process>(env, scope, &process));
                 out->insert(std::move(process));
                 return_if_error(attempt<SkipWhitespace>());
             }
@@ -502,12 +535,13 @@ class ProcessBag : public Parser {
 
 class ParenthesizedProcess : public Parser {
   public:
-    ParenthesizedProcess(Parser* parent, hst::Environment* env, const hst::Process** out)
+    ParenthesizedProcess(Parser* parent, hst::Environment* env,
+                         hst::RecursionScope* scope, const hst::Process** out)
         : Parser(parent, "parenthesized process")
     {
         return_if_error(attempt<RequireString>("("));
         return_if_error(attempt<SkipWhitespace>());
-        return_if_error(attempt<Process>(env, out));
+        return_if_error(attempt<Process>(env, scope, out));
         return_if_error(attempt<SkipWhitespace>());
         return_if_error(attempt<RequireString>(")"));
     }
@@ -515,7 +549,8 @@ class ParenthesizedProcess : public Parser {
 
 class Stop : public Parser {
   public:
-    Stop(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Stop(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+         const hst::Process** out)
         : Parser(parent, "STOP")
     {
         return_if_error(attempt<RequireString>("STOP"));
@@ -525,7 +560,8 @@ class Stop : public Parser {
 
 class Skip : public Parser {
   public:
-    Skip(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Skip(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+         const hst::Process** out)
         : Parser(parent, "SKIP")
     {
         return_if_error(attempt<RequireString>("SKIP"));
@@ -535,27 +571,38 @@ class Skip : public Parser {
 
 class Process1 : public Parser {
   public:
-    Process1(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process1(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process1")
     {
         // process1 = (process) | STOP | SKIP
-        return_if_success(attempt<ParenthesizedProcess>(env, out));
-        return_if_success(attempt<Stop>(env, out));
-        return_if_success(attempt<Skip>(env, out));
+        return_if_success(attempt<ParenthesizedProcess>(env, scope, out));
+        return_if_success(attempt<Stop>(env, scope, out));
+        return_if_success(attempt<Skip>(env, scope, out));
         fail();
     }
 };
 
 class Process2 : public Parser {
   public:
-    Process2(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process2(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process2")
     {
         // process2 = process1 | identifier | event → process2
-        return_if_success(attempt<Process1>(env, out));
+        return_if_success(attempt<Process1>(env, scope, out));
 
         std::string id;
         return_if_error(attempt<Identifier>(&id));
+
+        // identifier@scope
+        if (attempt<RequireString>("@")) {
+            hst::RecursionScope::ID scope = 0;
+            return_if_error(attempt<Integer<hst::RecursionScope::ID>>(&scope));
+            *out = env->recursive_process(scope, std::move(id));
+            return;
+        }
+
         return_if_error(attempt<SkipWhitespace>());
 
         // prefix
@@ -563,24 +610,33 @@ class Process2 : public Parser {
             hst::Event initial(id);
             const hst::Process* after;
             return_if_error(attempt<SkipWhitespace>());
-            return_if_error(attempt<Process2>(env, &after));
+            return_if_error(attempt<Process2>(env, scope, &after));
             *out = env->prefix(initial, std::move(after));
             return;
         }
 
-        fail();
+        // identifier
+        if (!scope) {
+            // Undefined identifier (not in a let)
+            fail();
+            return;
+        }
+
+        *out = scope->add(std::move(id));
+        return;
     }
 };
 
 class Process3 : public Parser {
   public:
-    Process3(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process3(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process3")
     {
         // process3 = process2 (; process3)?
 
         const hst::Process* lhs = nullptr;
-        return_if_error(attempt<Process2>(env, &lhs));
+        return_if_error(attempt<Process2>(env, scope, &lhs));
         return_if_error(attempt<SkipWhitespace>());
         if (!attempt<RequireString>(";")) {
             *out = std::move(lhs);
@@ -589,7 +645,7 @@ class Process3 : public Parser {
 
         return_if_error(attempt<SkipWhitespace>());
         const hst::Process* rhs = nullptr;
-        return_if_error(attempt<Process3>(env, &rhs));
+        return_if_error(attempt<Process3>(env, scope, &rhs));
         *out = env->sequential_composition(std::move(lhs), std::move(rhs));
     }
 };
@@ -598,12 +654,13 @@ class Process3 : public Parser {
 
 class Process6 : public Parser {
   public:
-    Process6(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process6(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process6")
     {
         // process6 = process5 (⊓ process6)?
         const hst::Process* lhs = nullptr;
-        return_if_error(attempt<Process5>(env, &lhs));
+        return_if_error(attempt<Process5>(env, scope, &lhs));
         return_if_error(attempt<SkipWhitespace>());
         if (!attempt<RequireString>("[]") && !attempt<RequireString>("□")) {
             *out = std::move(lhs);
@@ -612,19 +669,20 @@ class Process6 : public Parser {
 
         return_if_error(attempt<SkipWhitespace>());
         const hst::Process* rhs = nullptr;
-        return_if_error(attempt<Process6>(env, &rhs));
+        return_if_error(attempt<Process6>(env, scope, &rhs));
         *out = env->external_choice(std::move(lhs), std::move(rhs));
     }
 };
 
 class Process7 : public Parser {
   public:
-    Process7(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process7(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process7")
     {
         // process7 = process6 (⊓ process7)?
         const hst::Process* lhs = nullptr;
-        return_if_error(attempt<Process6>(env, &lhs));
+        return_if_error(attempt<Process6>(env, scope, &lhs));
         return_if_error(attempt<SkipWhitespace>());
         if (!attempt<RequireString>("|~|") && !attempt<RequireString>("⊓")) {
             *out = std::move(lhs);
@@ -633,7 +691,7 @@ class Process7 : public Parser {
 
         return_if_error(attempt<SkipWhitespace>());
         const hst::Process* rhs = nullptr;
-        return_if_error(attempt<Process7>(env, &rhs));
+        return_if_error(attempt<Process7>(env, scope, &rhs));
         *out = env->internal_choice(std::move(lhs), std::move(rhs));
     }
 };
@@ -642,12 +700,13 @@ class Process7 : public Parser {
 
 class Process9 : public Parser {
   public:
-    Process9(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process9(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+             const hst::Process** out)
         : Parser(parent, "process9")
     {
         // process9 = process8 (⫴ process9)?
         const hst::Process* lhs = nullptr;
-        return_if_error(attempt<Process8>(env, &lhs));
+        return_if_error(attempt<Process8>(env, scope, &lhs));
         return_if_error(attempt<SkipWhitespace>());
         if (!attempt<RequireString>("|||") && !attempt<RequireString>("⫴")) {
             *out = std::move(lhs);
@@ -656,7 +715,7 @@ class Process9 : public Parser {
 
         return_if_error(attempt<SkipWhitespace>());
         const hst::Process* rhs = nullptr;
-        return_if_error(attempt<Process9>(env, &rhs));
+        return_if_error(attempt<Process9>(env, scope, &rhs));
         *out = env->interleave(std::move(lhs), std::move(rhs));
     }
 };
@@ -665,7 +724,8 @@ class Process9 : public Parser {
 
 class Process11 : public Parser {
   public:
-    Process11(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process11(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+              const hst::Process** out)
         : Parser(parent, "process11")
     {
         // process11 = process10 | □ {process} | ⊓ {process}
@@ -674,7 +734,7 @@ class Process11 : public Parser {
         if (attempt<RequireString>("[]") || attempt<RequireString>("□")) {
             return_if_error(attempt<SkipWhitespace>());
             hst::Process::Set processes;
-            return_if_error(attempt<ProcessSet>(env, &processes));
+            return_if_error(attempt<ProcessSet>(env, scope, &processes));
             *out = env->external_choice(std::move(processes));
             return;
         }
@@ -683,7 +743,7 @@ class Process11 : public Parser {
         if (attempt<RequireString>("|~|") || attempt<RequireString>("⊓")) {
             return_if_error(attempt<SkipWhitespace>());
             hst::Process::Set processes;
-            return_if_error(attempt<ProcessSet>(env, &processes));
+            return_if_error(attempt<ProcessSet>(env, scope, &processes));
             *out = env->internal_choice(std::move(processes));
             return;
         }
@@ -692,20 +752,90 @@ class Process11 : public Parser {
         if (attempt<RequireString>("|||") || attempt<RequireString>("⫴")) {
             return_if_error(attempt<SkipWhitespace>());
             hst::Process::Bag processes;
-            return_if_error(attempt<ProcessBag>(env, &processes));
+            return_if_error(attempt<ProcessBag>(env, scope, &processes));
             *out = env->interleave(std::move(processes));
             return;
         }
 
-        return_if_error(attempt<Process10>(env, out));
+        return_if_error(attempt<Process10>(env, scope, out));
     }
 };
 
-#define Process12 Process11  // NIY
+class RecursiveDefinition : public Parser {
+  public:
+    RecursiveDefinition(Parser* parent, hst::Environment* env,
+                        hst::RecursionScope* scope)
+        : Parser(parent, "recursive definition")
+    {
+        std::string id;
+        return_if_error(attempt<Identifier>(&id));
+        hst::RecursiveProcess* process = scope->add(std::move(id));
+        if (process->filled()) {
+            // process redefined
+            fail();
+            return;
+        }
+
+        const hst::Process* target;
+        return_if_error(attempt<SkipWhitespace>());
+        return_if_error(attempt<RequireString>("="));
+        return_if_error(attempt<SkipWhitespace>());
+        return_if_error(attempt<Process>(env, scope, &target));
+        return_if_error(attempt<SkipWhitespace>());
+        process->fill(target);
+    }
+};
+
+class Process12 : public Parser {
+  public:
+    Process12(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+              const hst::Process** out)
+        : Parser(parent, "process12")
+    {
+        // process12 = process11 | let [id = process...] within [process]
+
+        // let
+        if (attempt<RequireString>("let")) {
+            // Create a new recursion scope for this let
+            hst::RecursionScope new_scope = env->recursion();
+
+            // Parse the recursion definitions, requiring there to be at least
+            // one of them.
+            return_if_error(attempt<SkipWhitespace>());
+            return_if_error(attempt<RecursiveDefinition>(env, &new_scope));
+            return_if_error(attempt<SkipWhitespace>());
+            while (!attempt<RequireString>("within")) {
+                return_if_error(attempt<RecursiveDefinition>(env, &new_scope));
+                return_if_error(attempt<SkipWhitespace>());
+            }
+
+            // After parsing the `within`, verify that any identifiers used in
+            // the definitions of each of the recursive processes were
+            // eventually defined.  (We have to wait to check for that here
+            // because we want to allow you to refer to a process that appears
+            // later on in the definition with having to forward-declare it.) */
+            std::vector<const std::string*> unfilled_names;
+            new_scope.unfilled_processes(&unfilled_names);
+            if (!unfilled_names.empty()) {
+                // TODO: Report which particular processes were undefined.
+                fail();
+                return;
+            }
+
+            // Then parse the let body.
+            return_if_error(attempt<SkipWhitespace>());
+            return_if_error(attempt<Process>(env, &new_scope, out));
+            return;
+        }
+
+        return_if_error(attempt<Process11>(env, scope, out));
+    }
+};
 
 class Process13 : public Parser {
   public:
-    Process13(Parser* parent, hst::Environment* env, const hst::Process** out)
+    Process13(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+              const hst::Process** out)
         : Parser(parent, "process13")
     {
         // process13 = process12 | prenormalize {process}
@@ -714,22 +844,22 @@ class Process13 : public Parser {
         if (attempt<RequireString>("prenormalize")) {
             return_if_error(attempt<SkipWhitespace>());
             hst::Process::Set processes;
-            return_if_error(attempt<ProcessSet>(env, &processes));
+            return_if_error(attempt<ProcessSet>(env, scope, &processes));
             *out = env->prenormalize(std::move(processes));
             return;
         }
 
-        return_if_error(attempt<Process12>(env, out));
+        return_if_error(attempt<Process12>(env, scope, out));
     }
 };
 
 // Now that we have all of our per-level Parsers defined, we just have to
 // delegate to the top level of the precedence tree to parse a Process.
 Process::Process(Parser* parent, hst::Environment* env,
-                 const hst::Process** out)
+                 hst::RecursionScope* scope, const hst::Process** out)
     : Parser(parent, "process")
 {
-    return_if_error(attempt<Process13>(env, out));
+    return_if_error(attempt<Process13>(env, scope, out));
 }
 
 }  // namespace
@@ -743,7 +873,7 @@ load_csp0_string(Environment* env, const std::string& csp0, ParseError* error)
     Parser parser(csp0);
     parser.attempt<SkipWhitespace>();
     const Process* result;
-    if (unlikely(!parser.attempt<::Process>(env, &result))) {
+    if (unlikely(!parser.attempt<::Process>(env, nullptr, &result))) {
         error->set_message("Error parsing CSP₀");
         return nullptr;
     }
