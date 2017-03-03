@@ -44,8 +44,7 @@ class SequentialComposition : public Process {
 const Process*
 Environment::sequential_composition(const Process* p, const Process* q)
 {
-    return register_process(
-            std::unique_ptr<Process>(new SequentialComposition(this, p, q)));
+    return register_process(new SequentialComposition(this, p, q));
 }
 
 // Operational semantics for P ; Q

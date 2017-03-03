@@ -43,8 +43,7 @@ class ExternalChoice : public Process {
 const Process*
 Environment::external_choice(Process::Set ps)
 {
-    return register_process(
-            std::unique_ptr<Process>(new ExternalChoice(this, std::move(ps))));
+    return register_process(new ExternalChoice(this, std::move(ps)));
 }
 
 const Process*

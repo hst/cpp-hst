@@ -39,7 +39,7 @@ class Prefix : public Process {
 const Process*
 Environment::prefix(Event a, const Process* p)
 {
-    return register_process(std::unique_ptr<Process>(new Prefix(a, p)));
+    return register_process(new Prefix(a, p));
 }
 
 // Operational semantics for a → P

@@ -44,8 +44,7 @@ class Prenormalization : public NormalizedProcess {
 const NormalizedProcess*
 Environment::prenormalize(Process::Set ps)
 {
-    return register_process(std::unique_ptr<NormalizedProcess>(
-            new Prenormalization(this, std::move(ps))));
+    return register_process(new Prenormalization(this, std::move(ps)));
 }
 
 const NormalizedProcess*
