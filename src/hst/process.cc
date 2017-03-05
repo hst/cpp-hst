@@ -8,7 +8,6 @@
 #include "hst/process.h"
 
 #include <algorithm>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,25 +52,25 @@ operator==(const Process::Bag& lhs, const Process::Bag& rhs)
 
 std::ostream& operator<<(std::ostream& out, const Process::Bag& processes)
 {
-    // We want reproducible output, so we sort the names of the processes in the
-    // set before rendering them into the stream.
-    std::vector<std::string> process_names;
-    for (const Process* process : processes) {
-        std::stringstream name;
-        name << *process;
-        process_names.emplace_back(name.str());
-    }
-    std::sort(process_names.begin(), process_names.end());
+    // We want reproducible output, so we sort the processes in the set before
+    // rendering them into the stream.  We the process's index to print out the
+    // processes in the order that they were defined.
+    std::vector<const Process*> sorted_processes(processes.begin(),
+                                                 processes.end());
+    std::sort(sorted_processes.begin(), sorted_processes.end(),
+              [](const Process* p1, const Process* p2) {
+                  return p1->index() < p2->index();
+              });
 
     bool first = true;
     out << "{";
-    for (const auto& process : process_names) {
+    for (const Process* process : sorted_processes) {
         if (first) {
             first = false;
         } else {
             out << ", ";
         }
-        out << process;
+        out << *process;
     }
     return out << "}";
 }
@@ -121,25 +120,25 @@ operator==(const Process::Set& lhs, const Process::Set& rhs)
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes)
 {
-    // We want reproducible output, so we sort the names of the processes in the
-    // set before rendering them into the stream.
-    std::vector<std::string> process_names;
-    for (const Process* process : processes) {
-        std::stringstream name;
-        name << *process;
-        process_names.emplace_back(name.str());
-    }
-    std::sort(process_names.begin(), process_names.end());
+    // We want reproducible output, so we sort the processes in the set before
+    // rendering them into the stream.  We the process's index to print out the
+    // processes in the order that they were defined.
+    std::vector<const Process*> sorted_processes(processes.begin(),
+                                                 processes.end());
+    std::sort(sorted_processes.begin(), sorted_processes.end(),
+              [](const Process* p1, const Process* p2) {
+                  return p1->index() < p2->index();
+              });
 
     bool first = true;
     out << "{";
-    for (const auto& process : process_names) {
+    for (const Process* process : sorted_processes) {
         if (first) {
             first = false;
         } else {
             out << ", ";
         }
-        out << process;
+        out << *process;
     }
     return out << "}";
 }
