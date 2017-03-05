@@ -8,6 +8,8 @@
 #include "hst/recursion.h"
 
 #include <assert.h>
+#include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -56,14 +58,14 @@ void
 RecursiveProcess::initials(Event::Set* out) const
 {
     assert(filled());
-    target_->initials(out);
+    definition_->initials(out);
 }
 
 void
 RecursiveProcess::afters(Event initial, Process::Set* out) const
 {
     assert(filled());
-    target_->afters(initial, out);
+    definition_->afters(initial, out);
 }
 
 std::size_t
@@ -85,17 +87,65 @@ RecursiveProcess::operator==(const Process& other_) const
            name_ == other->name_;
 }
 
+namespace {
+
+struct CompareNames {
+    bool
+    operator()(const RecursiveProcess* p1, const RecursiveProcess* p2) const
+    {
+        return p1->name() < p2->name();
+    }
+};
+
+// We need to render a recursive process differently inside of its definition
+// and outside of it.  We use this class to detect those two situations.
+class StreamWrapper : public std::stringstream {};
+
+}  // namespace
+
 void
 RecursiveProcess::print(std::ostream& out) const
 {
-    out << "whomp";
+    // If out is a StreamWrapper, then we're in the middle of printing out the
+    // definitions of a recursive process (possibly this one, possibly a
+    // different one that this one is mutually recursive with).  In that case,
+    // we just need to print out the name of this process.
+    if (dynamic_cast<StreamWrapper*>(&out)) {
+        out << name();
+        return;
+    }
+
+    // Otherwise we need to output the `let` statement that contains all of the
+    // definitions that are mutually recursive with the current one.  We'll
+    // first do a quick BFS to find them all.
+    std::set<const RecursiveProcess*, CompareNames> recursive_processes;
+    bfs([&recursive_processes](const Process* process) {
+        auto recursive_process = dynamic_cast<const RecursiveProcess*>(process);
+        if (recursive_process) {
+            recursive_processes.insert(recursive_process);
+        }
+        return true;
+    });
+
+    out << "let";
+    {
+        // Use our helper class here so that we can make sure to render
+        // recursive process names in their definitions.
+        StreamWrapper helper_out;
+        for (const RecursiveProcess* recursive_process : recursive_processes) {
+            helper_out << " " << recursive_process->name() << "=";
+            helper_out << *recursive_process->definition();
+        }
+        out << helper_out.rdbuf();
+    }
+    out << " within " << name();
 }
 
 void
-RecursiveProcess::fill(const Process* target)
+RecursiveProcess::fill(const Process* definition)
 {
     assert(!filled());
-    target_ = target;
+    definition_ = definition;
 }
 
 }  // namespace hst
