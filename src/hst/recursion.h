@@ -47,7 +47,7 @@ class RecursiveProcess : public Process {
   public:
     explicit RecursiveProcess(Environment* env, RecursionScope::ID scope,
                               std::string name)
-        : env_(env), scope_(scope), name_(std::move(name)), target_(nullptr)
+        : env_(env), scope_(scope), name_(std::move(name)), definition_(nullptr)
     {
     }
 
@@ -55,21 +55,22 @@ class RecursiveProcess : public Process {
     void afters(Event initial, Process::Set* out) const override;
 
     const std::string& name() const { return name_; }
-    bool filled() const { return target_; }
+    const Process* definition() const { return definition_; }
+    bool filled() const { return definition_; }
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
     unsigned int precedence() const override { return 0; }
     void print(std::ostream& out) const override;
 
-    // Fills this recursive process with a target, which must not have already
-    // been filed.
-    void fill(const Process* target);
+    // Fills this recursive process with a definition, which must not have
+    // already been filed.
+    void fill(const Process* definition);
 
   private:
     Environment* env_;
     RecursionScope::ID scope_;
     std::string name_;
-    const Process* target_;
+    const Process* definition_;
 };
 
 }  // namespace hst
