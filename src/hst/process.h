@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <memory>
 #include <ostream>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -27,8 +26,11 @@ class Process {
   public:
     class Bag;
     class Set;
+    using Index = unsigned int;
 
     virtual ~Process() = default;
+
+    Index index() const { return index_; }
 
     // Fill `out` with the initial events of this process.
     virtual void initials(Event::Set* out) const = 0;
@@ -81,6 +83,10 @@ class Process {
     template <typename T>
     void print_subprocesses(std::ostream& out, const T& processes,
                             const std::string& binary_op) const;
+
+  private:
+    friend class Environment;
+    Index index_;
 };
 
 inline std::ostream&
@@ -222,41 +228,42 @@ void
 Process::print_subprocesses(std::ostream& out, const T& processes,
                             const std::string& binary_op) const
 {
-    // We want reproducible output, so we sort the names of the processes in the
-    // set before rendering them into the stream.
-    std::vector<std::pair<std::string, unsigned int>> process_names;
-    for (const auto& process : processes) {
-        std::stringstream name;
-        name << *process;
-        process_names.emplace_back(
-                std::make_pair(name.str(), process->precedence()));
-    }
-    std::sort(process_names.begin(), process_names.end());
+    // We want reproducible output, so we sort the processes in the set before
+    // rendering them into the stream.  We the process's index to print out the
+    // processes in the order that they were defined.
+    std::vector<const Process*> sorted_processes(processes.begin(),
+                                                 processes.end());
+    std::sort(sorted_processes.begin(), sorted_processes.end(),
+              [](const Process* p1, const Process* p2) {
+                  return p1->index() < p2->index();
+              });
 
-    if (process_names.size() == 2) {
-        if (precedence() < process_names[0].second) {
-            out << "(" << process_names[0].first << ")";
+    if (sorted_processes.size() == 2) {
+        const Process* lhs = sorted_processes[0];
+        const Process* rhs = sorted_processes[1];
+        if (precedence() < lhs->precedence()) {
+            out << "(" << *lhs << ")";
         } else {
-            out << process_names[0].first;
+            out << *lhs;
         }
         out << " " << binary_op << " ";
-        if (precedence() < process_names[1].second) {
-            out << "(" << process_names[1].first << ")";
+        if (precedence() < rhs->precedence()) {
+            out << "(" << *rhs << ")";
         } else {
-            out << process_names[1].first;
+            out << *rhs;
         }
         return;
     }
 
     bool first = true;
     out << binary_op << " {";
-    for (const auto& name_and_precedence : process_names) {
+    for (const Process* process : sorted_processes) {
         if (first) {
             first = false;
         } else {
             out << ", ";
         }
-        out << name_and_precedence.first;
+        out << *process;
     }
     out << "}";
 }

@@ -584,7 +584,7 @@ TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
 TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
 {
     auto p = "prenormalize {a → STOP ⊓ b → STOP}";
-    check_name(p, "prenormalize {a → STOP, a → STOP ⊓ b → STOP, b → STOP}");
+    check_name(p, "prenormalize {a → STOP, b → STOP, a → STOP ⊓ b → STOP}");
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"prenormalize {STOP}"});
     check_afters(p, "b", {"prenormalize {STOP}"});

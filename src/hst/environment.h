@@ -65,6 +65,7 @@ class Environment {
     Registry registry_;
     const Process* skip_;
     const Process* stop_;
+    Process::Index next_process_index_ = 0;
     RecursionScope::ID next_recursion_scope_ = 0;
 };
 
@@ -74,6 +75,10 @@ Environment::register_process(T* process)
 {
     std::unique_ptr<T> owned(process);
     auto result = registry_.insert(std::move(owned));
+    if (result.second) {
+        // We just added `process`, so assign it an index.
+        process->index_ = next_process_index_++;
+    }
     // This static_cast is safe, even if we're returning an existing process
     // from the registry, since we've already verified that whatever we return
     // is equal to `process`.
