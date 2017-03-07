@@ -16,6 +16,7 @@
 #include "hst/event.h"
 #include "hst/process.h"
 #include "hst/recursion.h"
+#include "hst/semantic-models.h"
 
 //------------------------------------------------------------------------------
 // Debugging nonsense
@@ -838,7 +839,8 @@ class Process13 : public Parser {
               const hst::Process** out)
         : Parser(parent, "process13")
     {
-        // process13 = process12 | prenormalize {process}
+        // process13 = process12 | prenormalize {process} |
+        //             normalize[model] {process} within {process}
 
         // prenormalize {process}
         if (attempt<RequireString>("prenormalize")) {
@@ -846,6 +848,28 @@ class Process13 : public Parser {
             hst::Process::Set processes;
             return_if_error(attempt<ProcessSet>(env, scope, &processes));
             *out = env->prenormalize(std::move(processes));
+            return;
+        }
+
+        // normalize[model] {process} within {process}
+        if (attempt<RequireString>("normalize[T]")) {
+            hst::Process::Set processes;
+            return_if_error(attempt<SkipWhitespace>());
+            return_if_error(attempt<ProcessSet>(env, scope, &processes));
+            attempt<SkipWhitespace>();
+            if (attempt<RequireString>("within")) {
+                hst::Process::Set root;
+                return_if_error(attempt<SkipWhitespace>());
+                return_if_error(attempt<ProcessSet>(env, scope, &root));
+                const hst::NormalizedProcess* prenormalized_root =
+                        env->prenormalize(std::move(root));
+                *out = env->normalize<hst::Traces>(prenormalized_root,
+                                                   std::move(processes));
+            } else {
+                const hst::NormalizedProcess* prenormalized_root =
+                        env->prenormalize(std::move(processes));
+                *out = env->normalize<hst::Traces>(prenormalized_root);
+            }
             return;
         }
 

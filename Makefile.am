@@ -25,6 +25,7 @@ libhst_la_SOURCES = \
 	src/hst/hash.h \
 	src/hst/interleave.cc \
 	src/hst/internal-choice.cc \
+	src/hst/normalize.cc \
 	src/hst/prefix.cc \
 	src/hst/prenormalize.cc \
 	src/hst/process.h \

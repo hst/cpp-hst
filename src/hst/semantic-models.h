@@ -18,6 +18,8 @@ namespace hst {
 // signature:
 struct SemanticModel {
     class Behavior;
+    static const char* abbreviation();
+    static const char* name();
     static Behavior get_process_behavior(const Process& process);
     static Behavior get_process_behavior(const Process::Set& processes);
 };
@@ -28,6 +30,8 @@ struct Traces {
     // that it can perform.
     using Behavior = Event::Set;
 
+    static const char* abbreviation() { return "T"; }
+    static const char* name() { return "traces"; }
     static Behavior get_process_behavior(const Process& process);
     static Behavior get_process_behavior(const Process::Set& processes);
 };

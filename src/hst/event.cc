@@ -10,6 +10,8 @@
 #include <map>
 #include <ostream>
 
+#include "hst/hash.h"
+
 namespace hst {
 
 using std::map;
@@ -56,6 +58,17 @@ const string& Event::name() const
 std::ostream& operator<<(std::ostream& out, const Event& event)
 {
     return out << event.name();
+}
+
+std::size_t
+Event::Set::hash() const
+{
+    static hash_scope scope;
+    hst::hasher hash(scope);
+    for (Event event : *this) {
+        hash.add_unordered(event);
+    }
+    return hash.value();
 }
 
 std::ostream& operator<<(std::ostream& out, const Event::Set& events)

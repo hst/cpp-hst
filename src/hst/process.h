@@ -9,6 +9,7 @@
 #define HST_PROCESS_H
 
 #include <algorithm>
+#include <assert.h>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -119,6 +120,12 @@ class NormalizedProcess : public Process {
     // Returns the set of non-normalized processes that this normalized process
     // represents.
     virtual void expand(Process::Set* out) const = 0;
+
+    // Same as Process::bfs, but op should have a different signature:
+    //
+    //   bool op(const NormalizedProcess* process)
+    template <typename F>
+    void bfs(const F& op) const;
 };
 
 class Process::Bag : public std::unordered_multiset<const Process*> {
@@ -227,13 +234,40 @@ Process::bfs(const F& op) const
             }
             process->transitions(
                     [&seen, &next_queue](Event initial, const Process* after) {
-                        auto result = seen.insert(after);
-                        bool added = result.second;
-                        if (added) {
+                        bool was_added = seen.insert(after).second;
+                        if (was_added) {
                             next_queue.insert(after);
                         }
                         return true;
                     });
+        }
+        std::swap(queue, next_queue);
+    }
+}
+
+template <typename F>
+void
+NormalizedProcess::bfs(const F& op) const
+{
+    std::unordered_set<const NormalizedProcess*> seen;
+    std::unordered_set<const NormalizedProcess*> queue;
+    queue.insert(this);
+    while (!queue.empty()) {
+        std::unordered_set<const NormalizedProcess*> next_queue;
+        for (const NormalizedProcess* process : queue) {
+            if (!op(process)) {
+                return;
+            }
+            Event::Set initials;
+            process->initials(&initials);
+            for (const Event initial : initials) {
+                const NormalizedProcess* after = process->after(initial);
+                assert(after);
+                bool was_added = seen.insert(after).second;
+                if (was_added) {
+                    next_queue.insert(after);
+                }
+            }
         }
         std::swap(queue, next_queue);
     }

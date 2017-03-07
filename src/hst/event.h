@@ -68,6 +68,7 @@ class Event::Set : public std::set<Event> {
 
   public:
     using Parent::set;
+    std::size_t hash() const;
 };
 
 std::ostream& operator<<(std::ostream& out, const Event::Set& events);
@@ -82,6 +83,15 @@ struct hash<hst::Event>
     std::size_t operator()(const hst::Event& event) const
     {
         return std::hash<string>()(event.name());
+    }
+};
+
+template <>
+struct hash<hst::Event::Set>
+{
+    std::size_t operator()(const hst::Event::Set& set) const
+    {
+        return set.hash();
     }
 };
 

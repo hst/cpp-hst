@@ -665,3 +665,65 @@ TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
     check_traces_behavior(p, {"a"});
     check_expansion(p, {"a → SKIP ; b → STOP"});
 }
+
+TEST_CASE_GROUP("normalization");
+
+TEST_CASE("normalize[T] {a → STOP}")
+{
+    auto p = "normalize[T] {a → STOP}";
+    check_name(p, "normalize[T] {a → STOP}");
+    check_initials(p, {"a"});
+    check_afters(p, "a", {"normalize[T] {STOP} within {a → STOP}"});
+    check_afters(p, "τ", {});
+    check_reachable(p, {"normalize[T] {a → STOP} within {a → STOP}",
+                        "normalize[T] {STOP} within {a → STOP}"});
+    check_tau_closure(p, {"normalize[T] {a → STOP} within {a → STOP}"});
+    check_traces_behavior(p, {"a"});
+    check_expansion(p, {"a → STOP"});
+}
+
+TEST_CASE("normalize[T] {b → a → a → STOP □ c → a → a → STOP} (using let)")
+{
+    // We want to use a let here instead of using □ directly like in the test
+    // name, because our memoization would make the two copies of "a→a→STOP"
+    // refer to exactly the same Process instance.  We want to make sure that we
+    // have separate Process instances that have the same behavior; hence the
+    // lets
+    auto p = "normalize[T] {"
+             "  let "
+             "    root=b → A □ c → D "
+             "    A=□ {a → B} "
+             "    B=□ {a → C} "
+             "    C=□ {} "
+             "    D=□ {a → E} "
+             "    E=□ {a → F} "
+             "    F=□ {} "
+             "  within root"
+             "}";
+    check_name(p,
+               "normalize[T] {"
+               "let "
+               "root=b → A □ c → D "
+               "A=□ {a → B} "  // This order because we render the definitions
+               "D=□ {a → E} "  // in the order that they're encountered, and we
+               "B=□ {a → C} "  // reference A and D up in root before we start
+               "C=□ {} "       // defining any of the subprocesses.
+               "E=□ {a → F} "
+               "F=□ {} "
+               "within root"
+               "}");
+    check_initials(p, {"b", "c"});
+    // Since A and D have the same behavior (even though we've ensured that
+    // they're distinct Process objects), they're merged together during
+    // bisimulation.
+    check_afters(p, "b", {"normalize[T] {A@0,D@0} within {root@0}"});
+    check_afters(p, "c", {"normalize[T] {A@0,D@0} within {root@0}"});
+    check_afters(p, "τ", {});
+    check_reachable(p, {"normalize[T] {root@0}",
+                        "normalize[T] {A@0,D@0} within {root@0}",
+                        "normalize[T] {B@0,E@0} within {root@0}",
+                        "normalize[T] {C@0,F@0} within {root@0}"});
+    check_tau_closure(p, {"normalize[T] {root@0}"});
+    check_traces_behavior(p, {"b", "c"});
+    check_expansion(p, {"root@0"});
+}
