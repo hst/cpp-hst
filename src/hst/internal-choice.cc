@@ -23,6 +23,7 @@ class InternalChoice : public Process {
     explicit InternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -66,6 +67,12 @@ InternalChoice::afters(Event initial, Process::Set* out) const
     if (initial == Event::tau()) {
         out->insert(ps_.begin(), ps_.end());
     }
+}
+
+void
+InternalChoice::subprocesses(Process::Set* out) const
+{
+    out->insert(ps_.begin(), ps_.end());
 }
 
 std::size_t

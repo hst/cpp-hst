@@ -27,6 +27,7 @@ class SequentialComposition : public Process {
 
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -108,6 +109,13 @@ SequentialComposition::afters(Event initial, Process::Set* out) const
             out->insert(q_);
         }
     }
+}
+
+void
+SequentialComposition::subprocesses(Process::Set* out) const
+{
+    out->insert(p_);
+    out->insert(q_);
 }
 
 std::size_t

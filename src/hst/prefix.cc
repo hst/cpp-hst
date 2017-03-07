@@ -23,6 +23,7 @@ class Prefix : public Process {
     Prefix(Event a, const Process* p) : a_(a), p_(p) {}
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -61,6 +62,12 @@ Prefix::afters(Event initial, Process::Set* out) const
     if (initial == a_) {
         out->insert(p_);
     }
+}
+
+void
+Prefix::subprocesses(Process::Set* out) const
+{
+    out->insert(p_);
 }
 
 std::size_t
