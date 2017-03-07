@@ -474,6 +474,21 @@ TEST_CASE("let X=a → Y Y=b → X within X")
     check_traces_behavior(p, {"a"});
 }
 
+TEST_CASE("let X=Y □ Z Y=a → X Z=b → X within X")
+{
+    auto p = "let X=Y □ Z Y=a → X Z=b → X within X";
+    check_name(p, "let X=Y □ Z Y=a → X Z=b → X within X");
+    check_subprocesses(p, {"Y@0 □ Z@0"});
+    check_initials(p, {"a", "b"});
+    check_afters(p, "a", {"X@0"});
+    check_afters(p, "b", {"X@0"});
+    // Y@0 and Z@0 aren't reachable because the external choice "pulls them
+    // apart" when calculating X@0's initials and afters.
+    check_reachable(p, {"X@0"});
+    check_tau_closure(p, {"X@0"});
+    check_traces_behavior(p, {"a", "b"});
+}
+
 TEST_CASE_GROUP("SKIP");
 
 TEST_CASE("SKIP")

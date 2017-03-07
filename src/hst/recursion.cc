@@ -96,17 +96,13 @@ RecursiveProcess::operator==(const Process& other_) const
 
 namespace {
 
-struct CompareNames {
+struct CompareIndices {
     bool
     operator()(const RecursiveProcess* p1, const RecursiveProcess* p2) const
     {
-        return p1->name() < p2->name();
+        return p1->index() < p2->index();
     }
 };
-
-// We need to render a recursive process differently inside of its definition
-// and outside of it.  We use this class to detect those two situations.
-class StreamWrapper : public std::stringstream {};
 
 }  // namespace
 
@@ -117,7 +113,8 @@ RecursiveProcess::print(std::ostream& out) const
     // definitions of a recursive process (possibly this one, possibly a
     // different one that this one is mutually recursive with).  In that case,
     // we just need to print out the name of this process.
-    if (dynamic_cast<StreamWrapper*>(&out)) {
+    static thread_local bool print_names = false;
+    if (print_names) {
         out << name();
         return;
     }
@@ -125,8 +122,8 @@ RecursiveProcess::print(std::ostream& out) const
     // Otherwise we need to output the `let` statement that contains all of the
     // definitions that are mutually recursive with the current one.  We'll
     // first do a quick BFS to find them all.
-    std::set<const RecursiveProcess*, CompareNames> recursive_processes;
-    bfs([&recursive_processes](const Process* process) {
+    std::set<const RecursiveProcess*, CompareIndices> recursive_processes;
+    bfs_syntactic([&recursive_processes](const Process* process) {
         auto recursive_process = dynamic_cast<const RecursiveProcess*>(process);
         if (recursive_process) {
             recursive_processes.insert(recursive_process);
@@ -134,18 +131,14 @@ RecursiveProcess::print(std::ostream& out) const
         return true;
     });
 
+    print_names = true;
     out << "let";
-    {
-        // Use our helper class here so that we can make sure to render
-        // recursive process names in their definitions.
-        StreamWrapper helper_out;
-        for (const RecursiveProcess* recursive_process : recursive_processes) {
-            helper_out << " " << recursive_process->name() << "=";
-            helper_out << *recursive_process->definition();
-        }
-        out << helper_out.rdbuf();
+    for (const RecursiveProcess* recursive_process : recursive_processes) {
+        out << " " << recursive_process->name() << "=";
+        out << *recursive_process->definition();
     }
     out << " within " << name();
+    print_names = false;
 }
 
 void
