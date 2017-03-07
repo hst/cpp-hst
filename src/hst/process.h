@@ -63,6 +63,16 @@ class Process {
     template <typename F>
     void bfs(const F& op) const;
 
+    // Performs a breadth-first search of the syntactic subprocesses, calling op
+    // for each one.  We guarantee that we'll call op() at most once for each
+    // syntactic subprocess.  op must have a signature compatible with:
+    //
+    //   bool op(const Process* process)
+    //
+    // If op ever returns false, then we'll abort the search.
+    template <typename F>
+    void bfs_syntactic(const F& op) const;
+
     virtual std::size_t hash() const = 0;
     virtual bool operator==(const Process& other) const = 0;
     bool operator!=(const Process& other) const { return !(*this == other); }
@@ -207,6 +217,7 @@ Process::bfs(const F& op) const
     std::unordered_set<const Process*> seen;
     std::unordered_set<const Process*> queue;
 
+    seen.insert(this);
     queue.insert(this);
     while (!queue.empty()) {
         std::unordered_set<const Process*> next_queue;
@@ -223,6 +234,35 @@ Process::bfs(const F& op) const
                         }
                         return true;
                     });
+        }
+        std::swap(queue, next_queue);
+    }
+}
+
+template <typename F>
+void
+Process::bfs_syntactic(const F& op) const
+{
+    std::unordered_set<const Process*> seen;
+    std::unordered_set<const Process*> queue;
+
+    seen.insert(this);
+    queue.insert(this);
+    while (!queue.empty()) {
+        std::unordered_set<const Process*> next_queue;
+        for (const Process* process : queue) {
+            if (!op(process)) {
+                return;
+            }
+            Process::Set subprocesses;
+            process->subprocesses(&subprocesses);
+            for (const Process* subprocess : subprocesses) {
+                auto result = seen.insert(subprocess);
+                bool added = result.second;
+                if (added) {
+                    next_queue.insert(subprocess);
+                }
+            }
         }
         std::swap(queue, next_queue);
     }
