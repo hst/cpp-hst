@@ -68,6 +68,13 @@ RecursiveProcess::afters(Event initial, Process::Set* out) const
     definition_->afters(initial, out);
 }
 
+void
+RecursiveProcess::subprocesses(Process::Set* out) const
+{
+    assert(filled());
+    out->insert(definition_);
+}
+
 std::size_t
 RecursiveProcess::hash() const
 {

@@ -79,6 +79,17 @@ check_name(const std::string& csp0, const std::string& expected)
 }
 
 void
+check_subprocesses(const std::string& csp0,
+                   std::initializer_list<const std::string> expected)
+{
+    Environment env;
+    const Process* process = require_csp0(&env, csp0);
+    Process::Set actual;
+    process->subprocesses(&actual);
+    check_eq(actual, require_csp0_set(&env, expected));
+}
+
+void
 check_initials(const std::string& csp0,
                std::initializer_list<const std::string> expected)
 {
@@ -191,6 +202,7 @@ TEST_CASE("STOP □ STOP")
 {
     auto p = "STOP □ STOP";
     check_name(p, "□ {STOP}");
+    check_subprocesses(p, {"STOP"});
     check_initials(p, {});
     check_afters(p, "a", {});
     check_reachable(p, {"STOP □ STOP"});
@@ -202,6 +214,7 @@ TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
 {
     auto p = "(a → STOP) □ (b → STOP ⊓ c → STOP)";
     check_name(p, "a → STOP □ (b → STOP ⊓ c → STOP)");
+    check_subprocesses(p, {"a → STOP", "b → STOP ⊓ c → STOP"});
     check_initials(p, {"a", "τ"});
     check_afters(p, "a", {"STOP"});
     check_afters(p, "b", {});
@@ -217,6 +230,7 @@ TEST_CASE("(a → STOP) □ (b → STOP)")
 {
     auto p = "(a → STOP) □ (b → STOP)";
     check_name(p, "a → STOP □ b → STOP");
+    check_subprocesses(p, {"a → STOP", "b → STOP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"STOP"});
     check_afters(p, "b", {"STOP"});
@@ -230,6 +244,7 @@ TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
 {
     auto p = "□ {a → STOP, b → STOP, c → STOP}";
     check_name(p, "□ {a → STOP, b → STOP, c → STOP}");
+    check_subprocesses(p, {"a → STOP", "b → STOP", "c → STOP"});
     check_initials(p, {"a", "b", "c"});
     check_afters(p, "a", {"STOP"});
     check_afters(p, "b", {"STOP"});
@@ -246,6 +261,7 @@ TEST_CASE("STOP ⫴ STOP")
 {
     auto p = "STOP ⫴ STOP";
     check_name(p, "STOP ⫴ STOP");
+    check_subprocesses(p, {"STOP"});
     check_initials(p, {"✔"});
     check_afters(p, "✔", {"STOP"});
     check_afters(p, "a", {});
@@ -259,6 +275,7 @@ TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
 {
     auto p = "(a → STOP) ⫴ (b → STOP ⊓ c → STOP)";
     check_name(p, "a → STOP ⫴ b → STOP ⊓ c → STOP");
+    check_subprocesses(p, {"a → STOP", "b → STOP ⊓ c → STOP"});
     check_initials(p, {"a", "τ"});
     check_afters(p, "a", {"STOP ⫴ (b → STOP ⊓ c → STOP)"});
     check_afters(p, "b", {});
@@ -277,6 +294,7 @@ TEST_CASE("a → STOP ⫴ a → STOP")
 {
     auto p = "a → STOP ⫴ a → STOP";
     check_name(p, "a → STOP ⫴ a → STOP");
+    check_subprocesses(p, {"a → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"STOP ⫴ a → STOP"});
     check_afters(p, "b", {});
@@ -291,6 +309,7 @@ TEST_CASE("a → STOP ⫴ b → STOP")
 {
     auto p = "a → STOP ⫴ b → STOP";
     check_name(p, "a → STOP ⫴ b → STOP");
+    check_subprocesses(p, {"a → STOP", "b → STOP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"STOP ⫴ b → STOP"});
     check_afters(p, "b", {"a → STOP ⫴ STOP"});
@@ -305,6 +324,7 @@ TEST_CASE("a → SKIP ⫴ b → SKIP")
 {
     auto p = "a → SKIP ⫴ b → SKIP";
     check_name(p, "a → SKIP ⫴ b → SKIP");
+    check_subprocesses(p, {"a → SKIP", "b → SKIP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"SKIP ⫴ b → SKIP"});
     check_afters(p, "b", {"a → SKIP ⫴ SKIP"});
@@ -321,6 +341,7 @@ TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
 {
     auto p = "(a → SKIP ⫴ b → SKIP) ; c → STOP";
     check_name(p, "(a → SKIP ⫴ b → SKIP) ; c → STOP");
+    check_subprocesses(p, {"a → SKIP ⫴ b → SKIP", "c → STOP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"(SKIP ⫴ b → SKIP) ; c → STOP"});
     check_afters(p, "b", {"(a → SKIP ⫴ SKIP) ; c → STOP"});
@@ -339,6 +360,7 @@ TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
 {
     auto p = "⫴ {a → STOP, b → STOP, c → STOP}";
     check_name(p, "⫴ {a → STOP, b → STOP, c → STOP}");
+    check_subprocesses(p, {"a → STOP", "b → STOP", "c → STOP"});
     check_initials(p, {"a", "b", "c"});
     check_afters(p, "a", {"⫴ {STOP, b → STOP, c → STOP}"});
     check_afters(p, "b", {"⫴ {a → STOP, STOP, c → STOP}"});
@@ -360,6 +382,7 @@ TEST_CASE("STOP ⊓ STOP")
 {
     auto p = "STOP ⊓ STOP";
     check_name(p, "⊓ {STOP}");
+    check_subprocesses(p, {"STOP"});
     check_initials(p, {"τ"});
     check_afters(p, "τ", {"STOP"});
     check_afters(p, "a", {});
@@ -372,6 +395,7 @@ TEST_CASE("(a → STOP) ⊓ (b → STOP)")
 {
     auto p = "(a → STOP) ⊓ (b → STOP)";
     check_name(p, "a → STOP ⊓ b → STOP");
+    check_subprocesses(p, {"a → STOP", "b → STOP"});
     check_initials(p, {"τ"});
     check_afters(p, "τ", {"a → STOP", "b → STOP"});
     check_afters(p, "a", {});
@@ -385,6 +409,7 @@ TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
 {
     auto p = "⊓ {a → STOP, b → STOP, c → STOP}";
     check_name(p, "⊓ {a → STOP, b → STOP, c → STOP}");
+    check_subprocesses(p, {"a → STOP", "b → STOP", "c → STOP"});
     check_initials(p, {"τ"});
     check_afters(p, "τ", {"a → STOP", "b → STOP", "c → STOP"});
     check_afters(p, "a", {});
@@ -401,6 +426,7 @@ TEST_CASE("a → STOP")
 {
     auto p = "a → STOP";
     check_name(p, "a → STOP");
+    check_subprocesses(p, {"STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"STOP"});
     check_afters(p, "τ", {});
@@ -413,6 +439,7 @@ TEST_CASE("a → b → STOP")
 {
     auto p = "a → b → STOP";
     check_name(p, "a → b → STOP");
+    check_subprocesses(p, {"b → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"b → STOP"});
     check_afters(p, "τ", {});
@@ -427,6 +454,7 @@ TEST_CASE("let X=a → STOP within X")
 {
     auto p = "let X=a → STOP within X";
     check_name(p, "let X=a → STOP within X");
+    check_subprocesses(p, {"a → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"STOP"});
     check_reachable(p, {"X@0", "STOP"});
@@ -438,6 +466,7 @@ TEST_CASE("let X=a → Y Y=b → X within X")
 {
     auto p = "let X=a → Y Y=b → X within X";
     check_name(p, "let X=a → Y Y=b → X within X");
+    check_subprocesses(p, {"a → Y@0"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"Y@0"});
     check_reachable(p, {"X@0", "Y@0"});
@@ -451,6 +480,7 @@ TEST_CASE("SKIP")
 {
     auto skip = "SKIP";
     check_name(skip, "SKIP");
+    check_subprocesses(skip, {});
     check_initials(skip, {"✔"});
     check_afters(skip, "a", {});
     check_afters(skip, "τ", {});
@@ -466,6 +496,7 @@ TEST_CASE("STOP")
 {
     auto stop = "STOP";
     check_name(stop, "STOP");
+    check_subprocesses(stop, {});
     check_initials(stop, {});
     check_afters(stop, "a", {});
     check_afters(stop, "τ", {});
@@ -480,6 +511,7 @@ TEST_CASE("SKIP ; STOP")
 {
     auto p = "SKIP ; STOP";
     check_name(p, "SKIP ; STOP");
+    check_subprocesses(p, {"SKIP", "STOP"});
     check_initials(p, {"τ"});
     check_afters(p, "a", {});
     check_afters(p, "b", {});
@@ -494,6 +526,7 @@ TEST_CASE("a → SKIP ; STOP")
 {
     auto p = "a → SKIP ; STOP";
     check_name(p, "a → SKIP ; STOP");
+    check_subprocesses(p, {"a → SKIP", "STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"SKIP ; STOP"});
     check_afters(p, "b", {});
@@ -508,6 +541,7 @@ TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
 {
     auto p = "(a → b → STOP □ SKIP) ; STOP";
     check_name(p, "(SKIP □ a → b → STOP) ; STOP");
+    check_subprocesses(p, {"a → b → STOP □ SKIP", "STOP"});
     check_initials(p, {"a", "τ"});
     check_afters(p, "a", {"b → STOP ; STOP"});
     check_afters(p, "b", {});
@@ -523,6 +557,7 @@ TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
 {
     auto p = "(a → b → STOP ⊓ SKIP) ; STOP";
     check_name(p, "(SKIP ⊓ a → b → STOP) ; STOP");
+    check_subprocesses(p, {"a → b → STOP ⊓ SKIP", "STOP"});
     check_initials(p, {"τ"});
     check_afters(p, "a", {});
     check_afters(p, "b", {});
@@ -542,6 +577,7 @@ TEST_CASE("prenormalize {a → STOP}")
 {
     auto p = "prenormalize {a → STOP}";
     check_name(p, "prenormalize {a → STOP}");
+    check_subprocesses(p, {"a → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"prenormalize {STOP}"});
     check_afters(p, "τ", {});
@@ -555,6 +591,7 @@ TEST_CASE("prenormalize {a → STOP □ b → STOP}")
 {
     auto p = "prenormalize {a → STOP □ b → STOP}";
     check_name(p, "prenormalize {a → STOP □ b → STOP}");
+    check_subprocesses(p, {"a → STOP □ b → STOP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"prenormalize {STOP}"});
     check_afters(p, "b", {"prenormalize {STOP}"});
@@ -570,6 +607,7 @@ TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
 {
     auto p = "prenormalize {a → STOP □ a → b → STOP}";
     check_name(p, "prenormalize {a → STOP □ a → b → STOP}");
+    check_subprocesses(p, {"a → STOP □ a → b → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"prenormalize {STOP, b → STOP}"});
     check_afters(p, "τ", {});
@@ -585,6 +623,7 @@ TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
 {
     auto p = "prenormalize {a → STOP ⊓ b → STOP}";
     check_name(p, "prenormalize {a → STOP, b → STOP, a → STOP ⊓ b → STOP}");
+    check_subprocesses(p, {"a → STOP ⊓ b → STOP", "a → STOP", "b → STOP"});
     check_initials(p, {"a", "b"});
     check_afters(p, "a", {"prenormalize {STOP}"});
     check_afters(p, "b", {"prenormalize {STOP}"});
@@ -600,6 +639,7 @@ TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
 {
     auto p = "prenormalize {a → SKIP ; b → STOP}";
     check_name(p, "prenormalize {a → SKIP ; b → STOP}");
+    check_subprocesses(p, {"a → SKIP ; b → STOP"});
     check_initials(p, {"a"});
     check_afters(p, "a", {"prenormalize {SKIP ; b → STOP}"});
     check_afters(p, "τ", {});

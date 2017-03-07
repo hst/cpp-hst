@@ -53,6 +53,7 @@ class RecursiveProcess : public Process {
 
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     const std::string& name() const { return name_; }
     const Process* definition() const { return definition_; }

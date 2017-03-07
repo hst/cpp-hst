@@ -18,6 +18,7 @@ class Skip : public Process {
     explicit Skip(const Process* stop) : stop_(stop) {}
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -42,6 +43,11 @@ Skip::afters(Event initial, Process::Set* out) const
     if (initial == Event::tick()) {
         out->insert(stop_);
     }
+}
+
+void
+Skip::subprocesses(Process::Set* out) const
+{
 }
 
 std::size_t
@@ -75,6 +81,7 @@ class Stop : public Process {
 
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -91,6 +98,11 @@ Stop::initials(Event::Set* out) const
 
 void
 Stop::afters(Event initial, Process::Set* out) const
+{
+}
+
+void
+Stop::subprocesses(Process::Set* out) const
 {
 }
 

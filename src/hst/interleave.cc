@@ -26,6 +26,7 @@ class Interleave : public Process {
 
     void initials(Event::Set* out) const override;
     void afters(Event initial, Process::Set* out) const override;
+    void subprocesses(Process::Set* out) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -180,6 +181,12 @@ Interleave::afters(Event initial, Process::Set* out) const
     } else {
         normal_afters(initial, out);
     }
+}
+
+void
+Interleave::subprocesses(Process::Set* out) const
+{
+    out->insert(ps_.begin(), ps_.end());
 }
 
 std::size_t

@@ -32,12 +32,17 @@ class Process {
 
     Index index() const { return index_; }
 
-    // Fill `out` with the initial events of this process.
+    // Fills `out` with the initial events of this process.
     virtual void initials(Event::Set* out) const = 0;
 
-    // Fill `out` with the subprocesses that you reach after following a single
+    // Fills `out` with the subprocesses that you reach after following a single
     // `initial` event from this process.
     virtual void afters(Event initial, Set* out) const = 0;
+
+    // Fills `out` with the syntactic subprocesses of this process.  This should
+    // only include the subprocesses that are needed to print out the definition
+    // of this process.
+    virtual void subprocesses(Set* out) const = 0;
 
     // Calls op for each of the process's outgoing transitions.  op must have a
     // signature compatible with:
