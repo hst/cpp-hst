@@ -145,7 +145,7 @@ check_traces_behavior(const std::string& csp0,
     Environment env;
     const Process* process = require_csp0(&env, csp0);
     Traces::Behavior actual = Traces::get_process_behavior(*process);
-    check_eq(actual, events_from_names(expected));
+    check_eq(actual.events(), events_from_names(expected));
 }
 
 // Verify the set of non-normalized processes that a normalized process expands
