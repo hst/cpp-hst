@@ -32,6 +32,8 @@ libhst_la_SOURCES = \
 	src/hst/process.cc \
 	src/hst/recursion.h \
 	src/hst/recursion.cc \
+	src/hst/refinement.h \
+	src/hst/refinement.cc \
 	src/hst/semantic-models.h \
 	src/hst/semantic-models.cc \
 	src/hst/sequential-composition.cc
@@ -48,7 +50,8 @@ check_PROGRAMS = \
 	tests/test-harness \
 	tests/test-events \
 	tests/test-csp0 \
-	tests/test-operators
+	tests/test-operators \
+	tests/test-refinement
 
 check_LTLIBRARIES = libtests.la
 libtests_la_SOURCES = \
@@ -61,5 +64,6 @@ tests_test_csp0_LDFLAGS = -no-install
 tests_test_events_LDFLAGS = -no-install
 tests_test_harness_LDFLAGS = -no-install
 tests_test_operators_LDFLAGS = -no-install
+tests_test_refinement_LDFLAGS = -no-install
 
 dist_doc_DATA = README.md
