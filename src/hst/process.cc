@@ -30,24 +30,12 @@ Process::Bag::hash() const
 {
     static hash_scope scope;
     hst::hasher hash(scope);
-    for (const Process* process : *this) {
-        hash.add_unordered(*process);
+    std::vector<const Process*> sorted(begin(), end());
+    std::sort(sorted.begin(), sorted.end());
+    for (const Process* process : sorted) {
+        hash.add(*process);
     }
     return hash.value();
-}
-
-bool
-operator==(const Process::Bag& lhs, const Process::Bag& rhs)
-{
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-    for (const Process* process : lhs) {
-        if (rhs.find(process) == rhs.end()) {
-            return false;
-        }
-    }
-    return true;
 }
 
 std::ostream& operator<<(std::ostream& out, const Process::Bag& processes)
@@ -80,8 +68,10 @@ Process::Set::hash() const
 {
     static hash_scope scope;
     hst::hasher hash(scope);
-    for (const Process* process : *this) {
-        hash.add_unordered(*process);
+    std::vector<const Process*> sorted(begin(), end());
+    std::sort(sorted.begin(), sorted.end());
+    for (const Process* process : sorted) {
+        hash.add(*process);
     }
     return hash.value();
 }
@@ -102,20 +92,6 @@ Process::Set::tau_close()
             return;
         }
     }
-}
-
-bool
-operator==(const Process::Set& lhs, const Process::Set& rhs)
-{
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-    for (const Process* process : lhs) {
-        if (rhs.find(process) == rhs.end()) {
-            return false;
-        }
-    }
-    return true;
 }
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes)

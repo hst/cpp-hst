@@ -138,9 +138,6 @@ class Process::Bag : public std::unordered_multiset<const Process*> {
     std::size_t hash() const;
 };
 
-bool
-operator==(const Process::Bag& lhs, const Process::Bag& rhs);
-
 std::ostream& operator<<(std::ostream& out, const Process::Bag& processes);
 
 class Process::Set : public std::unordered_set<const Process*> {
@@ -156,9 +153,6 @@ class Process::Set : public std::unordered_set<const Process*> {
     // additional processes you can reach by following τ one or more times.)
     void tau_close();
 };
-
-bool
-operator==(const Process::Set& lhs, const Process::Set& rhs);
 
 std::ostream& operator<<(std::ostream& out, const Process::Set& processes);
 

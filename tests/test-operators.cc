@@ -196,6 +196,51 @@ TEST_CASE("can compare sets of processes")
     check_eq(set1, set2);
 }
 
+TEST_CASE("process equality considers contents of sets")
+{
+    Environment env;
+    auto p1 = require_csp0(&env, "□ {}");
+    auto p2 = require_csp0(&env, "□ {a → STOP}");
+    auto p3 = require_csp0(&env, "□ {a → STOP, b → STOP}");
+    auto p4 = require_csp0(&env, "□ {a → STOP, b → STOP, c → STOP}");
+    check_ne(p1, p2);
+    check_ne(p1, p3);
+    check_ne(p1, p4);
+    check_ne(p2, p3);
+    check_ne(p2, p4);
+    check_ne(p3, p4);
+}
+
+TEST_CASE("process equality considers contents of bags")
+{
+    Environment env;
+    auto p1 = require_csp0(&env, "⫴ {}");
+    auto p2 = require_csp0(&env, "⫴ {a → STOP}");
+    auto p3 = require_csp0(&env, "⫴ {a → STOP, b → STOP}");
+    auto p4 = require_csp0(&env, "⫴ {a → STOP, b → STOP, c → STOP}");
+    check_ne(p1, p2);
+    check_ne(p1, p3);
+    check_ne(p1, p4);
+    check_ne(p2, p3);
+    check_ne(p2, p4);
+    check_ne(p3, p4);
+}
+
+TEST_CASE("process equality considers cardinality of contents of bags")
+{
+    Environment env;
+    auto p1 = require_csp0(&env, "⫴ {a→b→STOP, a→b→STOP, a→b→STOP}");
+    auto p2 = require_csp0(&env, "⫴ {a→b→STOP, a→b→STOP, b→STOP  }");
+    auto p3 = require_csp0(&env, "⫴ {a→b→STOP, b→STOP,   b→STOP  }");
+    auto p4 = require_csp0(&env, "⫴ {b→STOP,   b→STOP,   b→STOP  }");
+    check_ne(p1, p2);
+    check_ne(p1, p3);
+    check_ne(p1, p4);
+    check_ne(p2, p3);
+    check_ne(p2, p4);
+    check_ne(p3, p4);
+}
+
 TEST_CASE_GROUP("external choice");
 
 TEST_CASE("STOP □ STOP")
