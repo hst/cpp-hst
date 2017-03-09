@@ -7,8 +7,10 @@
 
 #include "hst/event.h"
 
+#include <algorithm>
 #include <map>
 #include <ostream>
+#include <vector>
 
 #include "hst/hash.h"
 
@@ -65,8 +67,10 @@ Event::Set::hash() const
 {
     static hash_scope scope;
     hst::hasher hash(scope);
-    for (Event event : *this) {
-        hash.add_unordered(event);
+    std::vector<Event> sorted(begin(), end());
+    std::sort(sorted.begin(), sorted.end());
+    for (const Event event : sorted) {
+        hash.add(event);
     }
     return hash.value();
 }
