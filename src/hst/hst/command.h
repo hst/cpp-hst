@@ -23,9 +23,15 @@ class Command {
     std::string name_;
 };
 
-class Reachable : public Command {
+class ReachableCommand : public Command {
   public:
-    Reachable() : Command("reachable") {}
+    ReachableCommand() : Command("reachable") {}
+    void run(int argc, char** argv) override;
+};
+
+class TracesCommand : public Command {
+  public:
+    TracesCommand() : Command("traces") {}
     void run(int argc, char** argv) override;
 };
 

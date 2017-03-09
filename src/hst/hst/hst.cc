@@ -11,8 +11,9 @@
 
 #include "hst/hst/command.h"
 
-static hst::Reachable reachable;
-static std::vector<hst::Command*> commands{&reachable};
+static hst::ReachableCommand reachable;
+static hst::TracesCommand traces;
+static std::vector<hst::Command*> commands{&reachable, &traces};
 
 int
 main(int argc, char** argv)

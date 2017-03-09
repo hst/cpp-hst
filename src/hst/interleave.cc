@@ -81,18 +81,25 @@ Interleave::initials(Event::Set* out) const
     //                ∪ ⋃ { (✔ ∈ initials(P)? {τ}: {}) | P ∈ Ps }       [rule 3]
     //                ∪ (Ps = {STOP}? {✔}: {})                          [rule 4]
 
+    // We have to use this intermediary set because we need to detect whether
+    // our subprocesses fill it in, and we can't depend on the caller passing us
+    // an empty `out`.
+    Event::Set initials;
+
     // Rules 1 and 2
     for (const Process* process : ps_) {
-        process->initials(out);
+        process->initials(&initials);
     }
     // Rule 3
-    if (out->erase(Event::tick()) > 0) {
-        out->insert(Event::tau());
+    if (initials.erase(Event::tick()) > 0) {
+        initials.insert(Event::tau());
     }
     // Rule 4
-    if (out->empty()) {
-        out->insert(Event::tick());
+    if (initials.empty()) {
+        initials.insert(Event::tick());
     }
+
+    out->insert(initials.begin(), initials.end());
 }
 
 void
