@@ -14,11 +14,12 @@
 #include "hst/csp0.h"
 #include "hst/environment.h"
 #include "hst/process.h"
+#include "hst/semantic-models.h"
 
 namespace hst {
 
 void
-ReachableCommand::run(int argc, char** argv)
+TracesCommand::run(int argc, char** argv)
 {
     bool verbose = false;
     static struct option options[] = {{"verbose", no_argument, 0, 'v'},
@@ -43,7 +44,7 @@ ReachableCommand::run(int argc, char** argv)
     argc -= optind, argv += optind;
 
     if (argc != 1) {
-        std::cerr << "Usage: hst reachable [-v] <process>" << std::endl;
+        std::cerr << "Usage: hst traces [-v] <process>" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -58,15 +59,15 @@ ReachableCommand::run(int argc, char** argv)
     }
 
     unsigned long count = 0;
-    process->bfs([&count, verbose](const Process* process) {
-        if (verbose) {
-            std::cout << *process << std::endl;
-        }
-        count++;
-        return true;
-    });
+    find_maximal_finite_traces(&env, process,
+                               [&count, verbose](const Trace& trace) {
+                                   if (verbose) {
+                                       std::cout << trace << std::endl;
+                                   }
+                                   count++;
+                               });
     if (verbose) {
-        std::cout << "Reachable processes: ";
+        std::cout << "Maximal finite traces: ";
     }
     std::cout << count << std::endl;
 }

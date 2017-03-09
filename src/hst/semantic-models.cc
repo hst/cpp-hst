@@ -15,6 +15,22 @@
 
 namespace hst {
 
+std::ostream&
+operator<<(std::ostream& out, const Trace& trace)
+{
+    out << "⟨";
+    bool first = true;
+    for (const Event event : trace) {
+        if (first) {
+            first = false;
+        } else {
+            out << ",";
+        }
+        out << event;
+    }
+    return out << "⟩";
+}
+
 Traces::Behavior
 Traces::get_process_behavior(const Process& process)
 {

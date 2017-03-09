@@ -5,10 +5,12 @@
  * -----------------------------------------------------------------------------
  */
 
+#include <algorithm>
 #include <assert.h>
 #include <initializer_list>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "test-cases.h"
 #include "test-harness.cc.in"
@@ -24,6 +26,7 @@ using hst::Event;
 using hst::NormalizedProcess;
 using hst::ParseError;
 using hst::Process;
+using hst::Trace;
 using hst::Traces;
 
 // The test cases in this file verify that we've implemented each of the CSP
@@ -66,6 +69,16 @@ events_from_names(std::initializer_list<const std::string> names)
         set.insert(Event(name));
     }
     return set;
+}
+
+Trace
+require_trace(std::initializer_list<const std::string> names)
+{
+    std::vector<Event> events;
+    for (const auto& name : names) {
+        events.emplace_back(name);
+    }
+    return Trace(std::move(events));
 }
 
 void
@@ -146,6 +159,34 @@ check_traces_behavior(const std::string& csp0,
     const Process* process = require_csp0(&env, csp0);
     Traces::Behavior actual = Traces::get_process_behavior(*process);
     check_eq(actual.events(), events_from_names(expected));
+}
+
+// Verify that the given CSP₀ process has a particular set of maximal traces.
+void
+check_maximal_traces(
+        const std::string& csp0,
+        std::initializer_list<std::initializer_list<const std::string>>
+                expected)
+{
+    Environment env;
+    const Process* process = require_csp0(&env, csp0);
+    std::vector<Trace> traces;
+    for (const auto& trace : expected) {
+        traces.emplace_back(require_trace(trace));
+    }
+
+    find_maximal_finite_traces(&env, process, [&traces](const Trace& trace) {
+        auto it = std::find(traces.begin(), traces.end(), trace);
+        if (it == traces.end()) {
+            fail() << "Unexpected maximal trace " << trace << abort_test();
+        }
+        traces.erase(it);
+    });
+
+    if (!traces.empty()) {
+        fail() << "Expected to find maximal trace " << traces[0]
+               << abort_test();
+    }
 }
 
 // Verify the set of non-normalized processes that a normalized process expands
@@ -253,6 +294,7 @@ TEST_CASE("STOP □ STOP")
     check_reachable(p, {"STOP □ STOP"});
     check_tau_closure(p, {"STOP □ STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{}});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
@@ -269,6 +311,7 @@ TEST_CASE("(a → STOP) □ (b → STOP ⊓ c → STOP)")
     check_tau_closure(p, {"(a → STOP) □ (b → STOP ⊓ c → STOP)",
                           "a → STOP □ b → STOP", "a → STOP □ c → STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}, {"b"}, {"c"}});
 }
 
 TEST_CASE("(a → STOP) □ (b → STOP)")
@@ -283,6 +326,7 @@ TEST_CASE("(a → STOP) □ (b → STOP)")
     check_reachable(p, {"(a → STOP) □ (b → STOP)", "STOP"});
     check_tau_closure(p, {"(a → STOP) □ (b → STOP)"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a"}, {"b"}});
 }
 
 TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
@@ -298,6 +342,7 @@ TEST_CASE("□ {a → STOP, b → STOP, c → STOP}")
     check_reachable(p, {"□ {a → STOP, b → STOP, c → STOP}", "STOP"});
     check_tau_closure(p, {"□ {a → STOP, b → STOP, c → STOP}"});
     check_traces_behavior(p, {"a", "b", "c"});
+    check_maximal_traces(p, {{"a"}, {"b"}, {"c"}});
 }
 
 TEST_CASE_GROUP("interleaving");
@@ -314,6 +359,7 @@ TEST_CASE("STOP ⫴ STOP")
     check_reachable(p, {"STOP ⫴ STOP", "STOP"});
     check_tau_closure(p, {"STOP ⫴ STOP"});
     check_traces_behavior(p, {"✔"});
+    check_maximal_traces(p, {{"✔"}});
 }
 
 TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
@@ -333,6 +379,10 @@ TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
     check_tau_closure(p, {"(a → STOP) ⫴ (b → STOP ⊓ c → STOP)",
                           "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b", "✔"},
+                             {"a", "c", "✔"},
+                             {"b", "a", "✔"},
+                             {"c", "a", "✔"}});
 }
 
 TEST_CASE("a → STOP ⫴ a → STOP")
@@ -348,6 +398,7 @@ TEST_CASE("a → STOP ⫴ a → STOP")
                         "STOP"});
     check_tau_closure(p, {"a → STOP ⫴ a → STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "a", "✔"}});
 }
 
 TEST_CASE("a → STOP ⫴ b → STOP")
@@ -363,6 +414,7 @@ TEST_CASE("a → STOP ⫴ b → STOP")
                         "STOP ⫴ b → STOP", "STOP ⫴ STOP", "STOP"});
     check_tau_closure(p, {"a → STOP ⫴ b → STOP"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a", "b", "✔"}, {"b", "a", "✔"}});
 }
 
 TEST_CASE("a → SKIP ⫴ b → SKIP")
@@ -380,6 +432,7 @@ TEST_CASE("a → SKIP ⫴ b → SKIP")
                         "STOP ⫴ SKIP", "STOP ⫴ STOP", "SKIP ⫴ SKIP", "STOP"});
     check_tau_closure(p, {"a → SKIP ⫴ b → SKIP"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a", "b", "✔"}, {"b", "a", "✔"}});
 }
 
 TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
@@ -399,6 +452,7 @@ TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
                 "(SKIP ⫴ SKIP) ; c → STOP", "c → STOP", "STOP"});
     check_tau_closure(p, {"(a → SKIP ⫴ b → SKIP) ; c → STOP"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a", "b", "c"}, {"b", "a", "c"}});
 }
 
 TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
@@ -419,6 +473,12 @@ TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
              "⫴ {STOP, STOP, c → STOP}", "⫴ {STOP, STOP, STOP}", "STOP"});
     check_tau_closure(p, {"⫴ {a → STOP, b → STOP, c → STOP}"});
     check_traces_behavior(p, {"a", "b", "c"});
+    check_maximal_traces(p, {{"a", "b", "c", "✔"},
+                             {"a", "c", "b", "✔"},
+                             {"b", "a", "c", "✔"},
+                             {"b", "c", "a", "✔"},
+                             {"c", "a", "b", "✔"},
+                             {"c", "b", "a", "✔"}});
 }
 
 TEST_CASE_GROUP("internal choice");
@@ -434,6 +494,7 @@ TEST_CASE("STOP ⊓ STOP")
     check_reachable(p, {"STOP ⊓ STOP", "STOP"});
     check_tau_closure(p, {"STOP ⊓ STOP", "STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{}});
 }
 
 TEST_CASE("(a → STOP) ⊓ (b → STOP)")
@@ -448,6 +509,7 @@ TEST_CASE("(a → STOP) ⊓ (b → STOP)")
             p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP", "STOP"});
     check_tau_closure(p, {"(a → STOP) ⊓ (b → STOP)", "a → STOP", "b → STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{"a"}, {"b"}});
 }
 
 TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
@@ -463,6 +525,7 @@ TEST_CASE("⊓ {a → STOP, b → STOP, c → STOP}")
     check_tau_closure(p, {"⊓ {a → STOP, b → STOP, c → STOP}", "a → STOP",
                           "b → STOP", "c → STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{"a"}, {"b"}, {"c"}});
 }
 
 TEST_CASE_GROUP("prefix");
@@ -478,6 +541,7 @@ TEST_CASE("a → STOP")
     check_reachable(p, {"a → STOP", "STOP"});
     check_tau_closure(p, {"a → STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}});
 }
 
 TEST_CASE("a → b → STOP")
@@ -491,6 +555,7 @@ TEST_CASE("a → b → STOP")
     check_reachable(p, {"a → b → STOP", "b → STOP", "STOP"});
     check_tau_closure(p, {"a → b → STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b"}});
 }
 
 TEST_CASE_GROUP("recursion");
@@ -505,6 +570,7 @@ TEST_CASE("let X=a → STOP within X")
     check_reachable(p, {"X@0", "STOP"});
     check_tau_closure(p, {"X@0"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}});
 }
 
 TEST_CASE("let X=a → Y Y=b → X within X")
@@ -517,6 +583,7 @@ TEST_CASE("let X=a → Y Y=b → X within X")
     check_reachable(p, {"X@0", "Y@0"});
     check_tau_closure(p, {"X@0"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b"}});
 }
 
 TEST_CASE("let X=Y □ Z Y=a → X Z=b → X within X")
@@ -532,6 +599,7 @@ TEST_CASE("let X=Y □ Z Y=a → X Z=b → X within X")
     check_reachable(p, {"X@0"});
     check_tau_closure(p, {"X@0"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a"}, {"b"}});
 }
 
 TEST_CASE_GROUP("SKIP");
@@ -548,6 +616,7 @@ TEST_CASE("SKIP")
     check_reachable(skip, {"SKIP", "STOP"});
     check_tau_closure(skip, {"SKIP"});
     check_traces_behavior(skip, {"✔"});
+    check_maximal_traces(skip, {{"✔"}});
 }
 
 TEST_CASE_GROUP("STOP");
@@ -563,6 +632,7 @@ TEST_CASE("STOP")
     check_reachable(stop, {"STOP"});
     check_tau_closure(stop, {"STOP"});
     check_traces_behavior(stop, {});
+    check_maximal_traces(stop, {{}});
 }
 
 TEST_CASE_GROUP("sequential composition");
@@ -580,6 +650,7 @@ TEST_CASE("SKIP ; STOP")
     check_reachable(p, {"SKIP ; STOP", "STOP"});
     check_tau_closure(p, {"SKIP ; STOP", "STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{}});
 }
 
 TEST_CASE("a → SKIP ; STOP")
@@ -595,6 +666,7 @@ TEST_CASE("a → SKIP ; STOP")
     check_reachable(p, {"a → SKIP ; STOP", "SKIP ; STOP", "STOP"});
     check_tau_closure(p, {"a → SKIP ; STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}});
 }
 
 TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
@@ -611,6 +683,7 @@ TEST_CASE("(a → b → STOP □ SKIP) ; STOP")
                         "STOP ; STOP", "STOP"});
     check_tau_closure(p, {"(a → b → STOP □ SKIP) ; STOP", "STOP"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b"}});
 }
 
 TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
@@ -629,6 +702,7 @@ TEST_CASE("(a → b → STOP ⊓ SKIP) ; STOP")
     check_tau_closure(p, {"(a → b → STOP ⊓ SKIP) ; STOP", "a → b → STOP ; STOP",
                           "SKIP ; STOP", "STOP"});
     check_traces_behavior(p, {});
+    check_maximal_traces(p, {{"a", "b"}});
 }
 
 TEST_CASE_GROUP("prenormalization");
@@ -644,6 +718,7 @@ TEST_CASE("prenormalize {a → STOP}")
     check_reachable(p, {"prenormalize {a → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}});
     check_expansion(p, {"a → STOP"});
 }
 
@@ -660,6 +735,7 @@ TEST_CASE("prenormalize {a → STOP □ b → STOP}")
             p, {"prenormalize {a → STOP □ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ b → STOP}"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a"}, {"b"}});
     check_expansion(p, {"a → STOP □ b → STOP"});
 }
 
@@ -676,6 +752,7 @@ TEST_CASE("prenormalize {a → STOP □ a → b → STOP}")
                      "prenormalize {STOP, b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP □ a → b → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b"}});
     check_expansion(p, {"a → STOP □ a → b → STOP"});
 }
 
@@ -692,6 +769,7 @@ TEST_CASE("prenormalize {a → STOP ⊓ b → STOP}")
             p, {"prenormalize {a → STOP ⊓ b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → STOP ⊓ b → STOP}"});
     check_traces_behavior(p, {"a", "b"});
+    check_maximal_traces(p, {{"a"}, {"b"}});
     check_expansion(p, {"a → STOP ⊓ b → STOP", "a → STOP", "b → STOP"});
 }
 
@@ -708,6 +786,7 @@ TEST_CASE("prenormalize {a → SKIP ; b → STOP}")
                      "prenormalize {SKIP ; b → STOP}", "prenormalize {STOP}"});
     check_tau_closure(p, {"prenormalize {a → SKIP ; b → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a", "b"}});
     check_expansion(p, {"a → SKIP ; b → STOP"});
 }
 
@@ -724,6 +803,7 @@ TEST_CASE("normalize[T] {a → STOP}")
                         "normalize[T] {STOP} within {a → STOP}"});
     check_tau_closure(p, {"normalize[T] {a → STOP} within {a → STOP}"});
     check_traces_behavior(p, {"a"});
+    check_maximal_traces(p, {{"a"}});
     check_expansion(p, {"a → STOP"});
 }
 
@@ -770,5 +850,6 @@ TEST_CASE("normalize[T] {b → a → a → STOP □ c → a → a → STOP} (usi
                         "normalize[T] {C@0,F@0} within {root@0}"});
     check_tau_closure(p, {"normalize[T] {root@0}"});
     check_traces_behavior(p, {"b", "c"});
+    check_maximal_traces(p, {{"b", "a", "a"}, {"c", "a", "a"}});
     check_expansion(p, {"root@0"});
 }
