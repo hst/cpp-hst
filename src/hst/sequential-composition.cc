@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <functional>
 #include <memory>
 #include <ostream>
 
@@ -25,9 +26,10 @@ class SequentialComposition : public Process {
     {
     }
 
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -59,21 +61,25 @@ Environment::sequential_composition(const Process* p, const Process* q)
 //       P;Q -τ→ Q
 
 void
-SequentialComposition::initials(Event::Set* out) const
+SequentialComposition::initials(std::function<void(Event)> op) const
 {
     // 1) P;Q can perform all of the same events as P, except for ✔.
     // 2) If P can perform ✔, then P;Q can perform τ.
     //
     // initials(P;Q) = initials(P) ∖ {✔}                                [rule 1]
     //               ∪ (✔ ∈ initials(P)? {τ}: {})                       [rule 2]
-    p_->initials(out);
-    if (out->erase(Event::tick())) {
-        out->insert(Event::tau());
-    }
+    p_->initials([&op](Event initial) {
+        if (initial == Event::tick()) {
+            op(Event::tau());
+        } else {
+            op(initial);
+        }
+    });
 }
 
 void
-SequentialComposition::afters(Event initial, Process::Set* out) const
+SequentialComposition::afters(Event initial,
+                              std::function<void(const Process&)> op) const
 {
     // afters(P;Q a ≠ ✔) = afters(P, a)                                 [rule 1]
     // afters(P;Q, τ) = Q  if ✔ ∈ initials(P)                           [rule 2]
@@ -90,32 +96,31 @@ SequentialComposition::afters(Event initial, Process::Set* out) const
 
     // If P can perform a non-✔ event (including τ) leading to P', then P;Q can
     // also perform that event, leading to P';Q.
-    {
-        Process::Set afters;
-        p_->afters(initial, &afters);
-        for (const Process* p_prime : afters) {
-            out->insert(env_->sequential_composition(p_prime, q_));
-        }
-    }
+    p_->afters(initial, [this, &op](const Process& p_prime) {
+        op(*env_->sequential_composition(&p_prime, q_));
+    });
 
     // If P can perform a ✔ leading to P', then P;Q can perform a τ leading to
     // Q.  Note that we don't care what P' is; we just care that it exists.
     if (initial == Event::tau()) {
+        bool any_ticks = false;
         Process::Set afters;
-        p_->afters(Event::tick(), &afters);
-        if (!afters.empty()) {
+        p_->afters(Event::tick(),
+                   [&any_ticks](const Process& _) { any_ticks = true; });
+        if (any_ticks) {
             // P can perform ✔, and we don't actually care what it leads to,
             // since we're going to lead to Q no matter what.
-            out->insert(q_);
+            op(*q_);
         }
     }
 }
 
 void
-SequentialComposition::subprocesses(Process::Set* out) const
+SequentialComposition::subprocesses(
+        std::function<void(const Process&)> op) const
 {
-    out->insert(p_);
-    out->insert(q_);
+    op(*p_);
+    op(*q_);
 }
 
 std::size_t

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <functional>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -33,46 +34,41 @@ class Process {
 
     Index index() const { return index_; }
 
-    // Fills `out` with the initial events of this process.
-    virtual void initials(Event::Set* out) const = 0;
+    // Calls `op` for each initial event of this process.  You CAN call `op`
+    // multiple times for any given initial event if that makes your
+    // implementation easier; it's up to the caller to deduplicate events if
+    // they need to.
+    virtual void initials(std::function<void(Event)> op) const = 0;
 
-    // Fills `out` with the subprocesses that you reach after following a single
-    // `initial` event from this process.
-    virtual void afters(Event initial, Set* out) const = 0;
+    // Calls `op` for each subprocess that you reach after following a single
+    // `initial` event from this process.  You CAN call `op` multiple times for
+    // any given process if that makes your implementation easier; it's up to
+    // the caller to deduplicate events if they need to.
+    virtual void
+    afters(Event initial, std::function<void(const Process&)> op) const = 0;
 
-    // Fills `out` with the syntactic subprocesses of this process.  This should
+    // Calls `op` for each syntactic subprocesses of this process.  This should
     // only include the subprocesses that are needed to print out the definition
-    // of this process.
-    virtual void subprocesses(Set* out) const = 0;
+    // of this process.  You CAN call `op` multiple times for any given process
+    // if that makes your implementation easier; it's up to the caller to
+    // deduplicate events if they need to.
+    virtual void subprocesses(std::function<void(const Process&)> op) const = 0;
 
-    // Calls op for each of the process's outgoing transitions.  op must have a
-    // signature compatible with:
-    //
-    //   bool op(Event initial, const Process* processs)
-    //
-    // If op ever returns false, then we'll abort the iteration.
-    template <typename F>
-    void transitions(const F& op) const;
+    // Legacy signatures; only here until we can migrate everything over to the
+    // new signatures above.
+    void initials(Event::Set* out) const;
+    void afters(Event initial, Process::Set* out) const;
+    void subprocesses(Process::Set* out) const;
 
-    // Performs a breadth-first search of the reachable subprocesses, calling op
-    // for each one.  We guarantee that we'll call op() at most once for each
-    // reachable subprocess.  op must have a signature compatible with:
-    //
-    //   bool op(const Process* process)
-    //
-    // If op ever returns false, then we'll abort the search.
-    template <typename F>
-    void bfs(const F& op) const;
+    // Performs a breadth-first search of the reachable subprocesses, calling
+    // `op` for each one.  We guarantee that we'll call op() at most once for
+    // each reachable subprocess.
+    void bfs(std::function<void(const Process&)> op) const;
 
-    // Performs a breadth-first search of the syntactic subprocesses, calling op
-    // for each one.  We guarantee that we'll call op() at most once for each
-    // syntactic subprocess.  op must have a signature compatible with:
-    //
-    //   bool op(const Process* process)
-    //
-    // If op ever returns false, then we'll abort the search.
-    template <typename F>
-    void bfs_syntactic(const F& op) const;
+    // Performs a breadth-first search of the syntactic subprocesses, calling
+    // `op` for each one.  We guarantee that we'll call op() at most once for
+    // each` syntactic subprocess.
+    void bfs_syntactic(std::function<void(const Process&)> op) const;
 
     virtual std::size_t hash() const = 0;
     virtual bool operator==(const Process& other) const = 0;
@@ -115,17 +111,16 @@ operator<<(std::ostream& out, const Process& process)
 class NormalizedProcess : public Process {
   public:
     virtual const NormalizedProcess* after(Event initial) const = 0;
-    void afters(Event initial, Set* out) const final;
+    void
+    afters(Event initial, std::function<void(const Process&)> op) const final;
 
     // Returns the set of non-normalized processes that this normalized process
     // represents.
-    virtual void expand(Process::Set* out) const = 0;
+    virtual void expand(std::function<void(const Process&)> op) const = 0;
 
-    // Same as Process::bfs, but op should have a different signature:
-    //
-    //   bool op(const NormalizedProcess* process)
-    template <typename F>
-    void bfs(const F& op) const;
+    // Same as Process::bfs, but the visitor takes in a NormalizedProcess
+    // instead of a Process.
+    void bfs(std::function<void(const NormalizedProcess&)> op) const;
 };
 
 class Process::Bag : public std::unordered_multiset<const Process*> {
@@ -194,103 +189,75 @@ struct hash<hst::Process::Set>
 
 namespace hst {
 
-template <typename F>
-void
-Process::transitions(const F& op) const
-{
-    Event::Set initials;
-    this->initials(&initials);
-    for (const auto& initial : initials) {
-        Process::Set afters;
-        this->afters(initial, &afters);
-        for (const auto& after : afters) {
-            if (!op(initial, after)) {
-                return;
-            }
-        }
-    }
-}
-
-template <typename F>
-void
-Process::bfs(const F& op) const
+inline void
+Process::bfs(std::function<void(const Process&)> op) const
 {
     std::unordered_set<const Process*> seen;
     std::unordered_set<const Process*> queue;
-
     seen.insert(this);
     queue.insert(this);
     while (!queue.empty()) {
         std::unordered_set<const Process*> next_queue;
         for (const Process* process : queue) {
-            if (!op(process)) {
-                return;
-            }
-            process->transitions(
-                    [&seen, &next_queue](Event initial, const Process* after) {
-                        bool was_added = seen.insert(after).second;
-                        if (was_added) {
-                            next_queue.insert(after);
-                        }
-                        return true;
-                    });
+            op(*process);
+            process->initials([process, &op, &seen,
+                               &next_queue](Event initial) {
+                process->afters(initial, [&op, &seen,
+                                          &next_queue](const Process& after) {
+                    bool was_added = seen.insert(&after).second;
+                    if (was_added) {
+                        next_queue.insert(&after);
+                    }
+                });
+            });
         }
         std::swap(queue, next_queue);
     }
 }
 
-template <typename F>
-void
-NormalizedProcess::bfs(const F& op) const
+inline void
+NormalizedProcess::bfs(std::function<void(const NormalizedProcess&)> op) const
 {
     std::unordered_set<const NormalizedProcess*> seen;
     std::unordered_set<const NormalizedProcess*> queue;
+    seen.insert(this);
     queue.insert(this);
     while (!queue.empty()) {
         std::unordered_set<const NormalizedProcess*> next_queue;
         for (const NormalizedProcess* process : queue) {
-            if (!op(process)) {
-                return;
-            }
+            op(*process);
             Event::Set initials;
-            process->initials(&initials);
-            for (const Event initial : initials) {
+            process->initials([process, &seen, &next_queue](Event initial) {
                 const NormalizedProcess* after = process->after(initial);
                 assert(after);
                 bool was_added = seen.insert(after).second;
                 if (was_added) {
                     next_queue.insert(after);
                 }
-            }
+            });
         }
         std::swap(queue, next_queue);
     }
 }
 
-template <typename F>
-void
-Process::bfs_syntactic(const F& op) const
+inline void
+Process::bfs_syntactic(std::function<void(const Process&)> op) const
 {
     std::unordered_set<const Process*> seen;
     std::unordered_set<const Process*> queue;
-
     seen.insert(this);
     queue.insert(this);
     while (!queue.empty()) {
         std::unordered_set<const Process*> next_queue;
         for (const Process* process : queue) {
-            if (!op(process)) {
-                return;
-            }
-            Process::Set subprocesses;
-            process->subprocesses(&subprocesses);
-            for (const Process* subprocess : subprocesses) {
-                auto result = seen.insert(subprocess);
-                bool added = result.second;
-                if (added) {
-                    next_queue.insert(subprocess);
-                }
-            }
+            op(*process);
+            process->subprocesses(
+                    [&seen, &next_queue](const Process& subprocess) {
+                        bool was_added = seen.insert(&subprocess).second;
+                        if (was_added) {
+                            next_queue.insert(&subprocess);
+                        }
+                    });
         }
         std::swap(queue, next_queue);
     }

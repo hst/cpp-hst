@@ -8,6 +8,7 @@
 #include "hst/recursion.h"
 
 #include <assert.h>
+#include <functional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -55,24 +56,25 @@ Environment::recursive_process(RecursionScope::ID scope,
 }
 
 void
-RecursiveProcess::initials(Event::Set* out) const
+RecursiveProcess::initials(std::function<void(Event)> op) const
 {
     assert(filled());
-    definition_->initials(out);
+    definition_->initials(op);
 }
 
 void
-RecursiveProcess::afters(Event initial, Process::Set* out) const
+RecursiveProcess::afters(Event initial,
+                         std::function<void(const Process&)> op) const
 {
     assert(filled());
-    definition_->afters(initial, out);
+    definition_->afters(initial, op);
 }
 
 void
-RecursiveProcess::subprocesses(Process::Set* out) const
+RecursiveProcess::subprocesses(std::function<void(const Process&)> op) const
 {
     assert(filled());
-    out->insert(definition_);
+    op(*definition_);
 }
 
 std::size_t
@@ -123,8 +125,9 @@ RecursiveProcess::print(std::ostream& out) const
     // definitions that are mutually recursive with the current one.  We'll
     // first do a quick BFS to find them all.
     std::set<const RecursiveProcess*, CompareIndices> recursive_processes;
-    bfs_syntactic([&recursive_processes](const Process* process) {
-        auto recursive_process = dynamic_cast<const RecursiveProcess*>(process);
+    bfs_syntactic([&recursive_processes](const Process& process) {
+        auto recursive_process =
+                dynamic_cast<const RecursiveProcess*>(&process);
         if (recursive_process) {
             recursive_processes.insert(recursive_process);
         }

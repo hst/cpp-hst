@@ -7,6 +7,8 @@
 
 #include "hst/environment.h"
 
+#include <functional>
+
 #include "hst/hash.h"
 
 namespace hst {
@@ -16,9 +18,9 @@ namespace {
 class Skip : public Process {
   public:
     explicit Skip(const Process* stop) : stop_(stop) {}
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial, std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -32,21 +34,21 @@ class Skip : public Process {
 }  // namespace
 
 void
-Skip::initials(Event::Set* out) const
+Skip::initials(std::function<void(Event)> op) const
 {
-    out->insert(Event::tick());
+    op(Event::tick());
 }
 
 void
-Skip::afters(Event initial, Process::Set* out) const
+Skip::afters(Event initial, std::function<void(const Process&)> op) const
 {
     if (initial == Event::tick()) {
-        out->insert(stop_);
+        op(*stop_);
     }
 }
 
 void
-Skip::subprocesses(Process::Set* out) const
+Skip::subprocesses(std::function<void(const Process&)> op) const
 {
 }
 
@@ -79,9 +81,9 @@ class Stop : public Process {
   public:
     Stop() = default;
 
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial, std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -92,17 +94,17 @@ class Stop : public Process {
 }  // namespace
 
 void
-Stop::initials(Event::Set* out) const
+Stop::initials(std::function<void(Event)> op) const
 {
 }
 
 void
-Stop::afters(Event initial, Process::Set* out) const
+Stop::afters(Event initial, std::function<void(const Process&)> op) const
 {
 }
 
 void
-Stop::subprocesses(Process::Set* out) const
+Stop::subprocesses(std::function<void(const Process&)> op) const
 {
 }
 

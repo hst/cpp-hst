@@ -8,6 +8,7 @@
 #ifndef HST_RECURSION_H
 #define HST_RECURSION_H
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 
@@ -51,9 +52,10 @@ class RecursiveProcess : public Process {
     {
     }
 
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     const std::string& name() const { return name_; }
     const Process* definition() const { return definition_; }
