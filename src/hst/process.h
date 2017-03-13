@@ -11,9 +11,11 @@
 #include <algorithm>
 #include <assert.h>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -123,14 +125,48 @@ class NormalizedProcess : public Process {
     void bfs(std::function<void(const NormalizedProcess&)> op) const;
 };
 
-class Process::Bag : public std::unordered_multiset<const Process*> {
+class Process::Bag {
   private:
-    using Parent = std::unordered_multiset<const Process*>;
+    using size_type = unsigned int;
+    using CountMap = std::unordered_map<const Process*, size_type>;
 
   public:
-    using Parent::unordered_multiset;
+    using const_iterator = CountMap::const_iterator;
+    using iterator = CountMap::iterator;
+
+    Bag() = default;
+    Bag(const Bag& other) = default;
+    explicit Bag(std::initializer_list<const Process*> elements)
+    {
+        for (const Process* process : elements) {
+            insert(process);
+        }
+    }
+
+    void insert(const Process* process);
+
+    // Unlike the STL multimap classes, this only removes ONE copy of process.
+    void erase(const Process* process);
 
     std::size_t hash() const;
+
+    // Returns a vector containing a sorted copy of the bag.  Duplicate elements
+    // will be added to the vector multiple times.
+    std::vector<const Process*> sorted() const;
+
+    bool operator==(const Bag& other) const { return counts_ == other.counts_; }
+    bool operator!=(const Bag& other) const { return counts_ != other.counts_; }
+
+    // Returns an iterator of (Process, count) pairs
+    iterator begin() { return counts_.begin(); }
+    iterator end() { return counts_.end(); }
+    const_iterator begin() const { return counts_.begin(); }
+    const_iterator end() const { return counts_.end(); }
+    const_iterator cbegin() const { return counts_.begin(); }
+    const_iterator cend() const { return counts_.end(); }
+
+  private:
+    CountMap counts_;
 };
 
 std::ostream& operator<<(std::ostream& out, const Process::Bag& processes);
@@ -143,6 +179,9 @@ class Process::Set : public std::unordered_set<const Process*> {
     using Parent::unordered_set;
 
     std::size_t hash() const;
+
+    // Returns a vector containing a sorted copy of the set.
+    std::vector<const Process*> sorted() const;
 
     // Updates this set of processes to be τ-closed.  (That is, we add any
     // additional processes you can reach by following τ one or more times.)
@@ -271,12 +310,7 @@ Process::print_subprocesses(std::ostream& out, const T& processes,
     // We want reproducible output, so we sort the processes in the set before
     // rendering them into the stream.  We the process's index to print out the
     // processes in the order that they were defined.
-    std::vector<const Process*> sorted_processes(processes.begin(),
-                                                 processes.end());
-    std::sort(sorted_processes.begin(), sorted_processes.end(),
-              [](const Process* p1, const Process* p2) {
-                  return p1->index() < p2->index();
-              });
+    std::vector<const Process*> sorted_processes = processes.sorted();
 
     if (sorted_processes.size() == 2) {
         const Process* lhs = sorted_processes[0];

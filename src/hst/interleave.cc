@@ -89,7 +89,8 @@ Interleave::initials(std::function<void(Event)> op) const
     //                ∪ (Ps = {STOP}? {✔}: {})                          [rule 4]
 
     bool any_events = false;
-    for (const Process* p : ps_) {
+    for (const auto& process_and_count : ps_) {
+        const Process* p = process_and_count.first;
         p->initials([&any_events, &op](Event initial) {
             any_events = true;
             if (initial == Event::tick()) {
@@ -119,9 +120,10 @@ Interleave::normal_afters(Event initial,
     // basic structure: Ps' = Ps ∖ {P} ∪ {P'}.  Each Ps' starts with Ps, so go
     // ahead and add that to our Ps' set once.
     Process::Bag ps_prime(ps_);
-    for (const Process* p : ps_) {
+    for (const auto& process_and_count : ps_) {
+        const Process* p = process_and_count.first;
         // Set Ps' to Ps ∖ {P}
-        ps_prime.erase(ps_prime.find(p));
+        ps_prime.erase(p);
         // Grab afters(P, a)
         p->afters(initial, [this, &op, &ps_prime](const Process& p_prime) {
             // ps_prime currently contains Ps.  Add P' and remove P to produce
@@ -130,7 +132,7 @@ Interleave::normal_afters(Event initial,
             // Create ⫴ (Ps ∖ {P} ∪ {P'}) as a result.
             op(*env_->interleave(ps_prime));
             // Reset Ps' back to Ps ∖ {P}.
-            ps_prime.erase(ps_prime.find(&p_prime));
+            ps_prime.erase(&p_prime);
         });
         // Reset Ps' back to Ps.
         ps_prime.insert(p);
@@ -153,7 +155,8 @@ Interleave::tau_afters(Event initial,
     // ahead and add that to our Ps' set once.
     Process::Bag ps_prime(ps_);
     // Find each P ∈ Ps where ✔ ∈ initials(P).
-    for (const Process* p : ps_) {
+    for (const auto& process_and_count : ps_) {
+        const Process* p = process_and_count.first;
         bool any_tick = false;
         p->initials([&any_tick](Event initial) {
             if (initial == Event::tick()) {
@@ -162,11 +165,11 @@ Interleave::tau_afters(Event initial,
         });
         if (any_tick) {
             // Create Ps ∖ {P} ∪ {STOP}) as a result.
-            ps_prime.erase(ps_prime.find(p));
+            ps_prime.erase(p);
             ps_prime.insert(env_->stop());
             op(*env_->interleave(ps_prime));
             // Reset Ps' back to Ps.
-            ps_prime.erase(ps_prime.find(env_->stop()));
+            ps_prime.erase(env_->stop());
             ps_prime.insert(p);
         }
     }
@@ -177,7 +180,8 @@ Interleave::tick_afters(Event initial,
                         std::function<void(const Process&)> op) const
 {
     // afters(⫴ {STOP}, ✔) = {STOP}                                     [rule 4]
-    for (const Process* p : ps_) {
+    for (const auto& process_and_count : ps_) {
+        const Process* p = process_and_count.first;
         bool any_events = false;
         p->initials([&any_events](Event _) { any_events = true; });
         if (any_events) {
@@ -204,8 +208,9 @@ Interleave::afters(Event initial, std::function<void(const Process&)> op) const
 void
 Interleave::subprocesses(std::function<void(const Process&)> op) const
 {
-    for (const Process* process : ps_) {
-        op(*process);
+    for (const auto& process_and_count : ps_) {
+        const Process* p = process_and_count.first;
+        op(*p);
     }
 }
 
