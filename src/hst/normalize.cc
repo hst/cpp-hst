@@ -8,6 +8,7 @@
 #include "hst/environment.h"
 
 #include <assert.h>
+#include <functional>
 #include <memory>
 #include <ostream>
 #include <unordered_map>
@@ -63,15 +64,15 @@ initialize_bisimulation(const NormalizedProcess* root)
 {
     Equivalences result;
     std::unordered_map<typename Model::Behavior, Equivalences::Head> behaviors;
-    root->bfs([&behaviors, &result](const NormalizedProcess* process) {
-        auto behavior = Model::get_process_behavior(*process);
+    root->bfs([&behaviors, &result](const NormalizedProcess& process) {
+        auto behavior = Model::get_process_behavior(process);
         Equivalences::Head& head = behaviors[behavior];
         if (!head) {
             // This is the first process we've encountered with this behavior,
             // so use it as the head of the equivalence class.
-            head = process;
+            head = &process;
         }
-        result.add(head, process);
+        result.add(head, &process);
         return true;
     });
     return result;
@@ -181,10 +182,10 @@ class Normalization : public NormalizedProcess {
         assert(equivalence_class);
     }
 
-    void initials(Event::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
     const NormalizedProcess* after(Event initial) const override;
-    void subprocesses(Process::Set* out) const override;
-    void expand(Process::Set* out) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
+    void expand(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -241,7 +242,9 @@ Normalization<Model>::find_subprocess(Process::Set processes) const
         const auto& members = head_and_members.second;
         Process::Set expanded_members;
         for (const NormalizedProcess* member : members) {
-            member->expand(&expanded_members);
+            member->expand([&expanded_members](const Process& process) {
+                expanded_members.insert(&process);
+            });
         }
         if (processes == expanded_members) {
             // We've found the right equivalence class!
@@ -272,10 +275,10 @@ Environment::normalize<Traces>(const NormalizedProcess* root,
 
 template <typename Model>
 void
-Normalization<Model>::initials(Event::Set* out) const
+Normalization<Model>::initials(std::function<void(Event)> op) const
 {
     for (const NormalizedProcess* process : members()) {
-        process->initials(out);
+        process->initials(op);
     }
 }
 
@@ -318,17 +321,19 @@ Normalization<Model>::after(Event initial) const
 
 template <typename Model>
 void
-Normalization<Model>::subprocesses(Process::Set* out) const
+Normalization<Model>::subprocesses(std::function<void(const Process&)> op) const
 {
-    out->insert(members().begin(), members().end());
+    for (const NormalizedProcess* process : members()) {
+        op(*process);
+    }
 }
 
 template <typename Model>
 void
-Normalization<Model>::expand(Process::Set* out) const
+Normalization<Model>::expand(std::function<void(const Process&)> op) const
 {
     for (const NormalizedProcess* process : members()) {
-        process->expand(out);
+        process->expand(op);
     }
 }
 
@@ -362,8 +367,12 @@ Normalization<Model>::print(std::ostream& out) const
 {
     Process::Set expansion;
     Process::Set root_expansion;
-    expand(&expansion);
-    prenormalized_root_->expand(&root_expansion);
+    expand([&expansion](const Process& process) {
+        expansion.insert(&process);
+    });
+    prenormalized_root_->expand([&root_expansion](const Process& process) {
+        root_expansion.insert(&process);
+    });
     if (expansion == root_expansion) {
         out << "normalize[" << Model::abbreviation() << "] " << root_expansion;
     } else {

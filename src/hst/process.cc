@@ -17,11 +17,30 @@
 namespace hst {
 
 void
-NormalizedProcess::afters(Event initial, Set* out) const
+Process::initials(Event::Set* out) const
+{
+    initials([&out](Event event) { out->insert(event); });
+}
+
+void
+Process::afters(Event initial, Process::Set* out) const
+{
+    afters(initial, [&out](const Process& process) { out->insert(&process); });
+}
+
+void
+Process::subprocesses(Process::Set* out) const
+{
+    subprocesses([&out](const Process& process) { out->insert(&process); });
+}
+
+void
+NormalizedProcess::afters(Event initial,
+                          std::function<void(const Process&)> op) const
 {
     const NormalizedProcess* process = after(initial);
     if (process) {
-        out->insert(process);
+        op(*process);
     }
 }
 

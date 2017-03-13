@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <functional>
 #include <memory>
 #include <ostream>
 
@@ -21,9 +22,10 @@ namespace {
 class InternalChoice : public Process {
   public:
     explicit InternalChoice(Process::Set ps) : ps_(std::move(ps)) {}
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -54,25 +56,30 @@ Environment::internal_choice(const Process* p, const Process* q)
 //     ⊓ Ps -τ→ P
 
 void
-InternalChoice::initials(Event::Set* out) const
+InternalChoice::initials(std::function<void(Event)> op) const
 {
     // initials(⊓ Ps) = {τ}
-    out->insert(Event::tau());
+    op(Event::tau());
 }
 
 void
-InternalChoice::afters(Event initial, Process::Set* out) const
+InternalChoice::afters(Event initial,
+                       std::function<void(const Process&)> op) const
 {
     // afters(⊓ Ps, τ) = Ps
     if (initial == Event::tau()) {
-        out->insert(ps_.begin(), ps_.end());
+        for (const Process* process : ps_) {
+            op(*process);
+        }
     }
 }
 
 void
-InternalChoice::subprocesses(Process::Set* out) const
+InternalChoice::subprocesses(std::function<void(const Process&)> op) const
 {
-    out->insert(ps_.begin(), ps_.end());
+    for (const Process* process : ps_) {
+        op(*process);
+    }
 }
 
 std::size_t

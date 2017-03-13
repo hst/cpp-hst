@@ -132,8 +132,8 @@ check_reachable(const std::string& csp0,
     Environment env;
     const Process* process = require_csp0(&env, csp0);
     Process::Set actual;
-    process->bfs([&actual](const Process* process) {
-        actual.insert(process);
+    process->bfs([&actual](const Process& process) {
+        actual.insert(&process);
         return true;
     });
     check_eq(actual, require_csp0_set(&env, expected));
@@ -201,7 +201,8 @@ check_expansion(const std::string& csp0,
             dynamic_cast<const NormalizedProcess*>(process);
     assert(normalized);
     Process::Set actual;
-    normalized->expand(&actual);
+    normalized->expand(
+            [&actual](const Process& process) { actual.insert(&process); });
     check_eq(actual, require_csp0_set(&env, expected));
 }
 

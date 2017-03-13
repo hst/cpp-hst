@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <functional>
 #include <memory>
 #include <ostream>
 
@@ -21,9 +22,10 @@ namespace {
 class Prefix : public Process {
   public:
     Prefix(Event a, const Process* p) : a_(a), p_(p) {}
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -49,25 +51,25 @@ Environment::prefix(Event a, const Process* p)
 //     a → P -a→ P
 
 void
-Prefix::initials(Event::Set* out) const
+Prefix::initials(std::function<void(Event)> op) const
 {
     // initials(a → P) = {a}
-    out->insert(a_);
+    op(a_);
 }
 
 void
-Prefix::afters(Event initial, Process::Set* out) const
+Prefix::afters(Event initial, std::function<void(const Process&)> op) const
 {
     // afters(a → P, a) = P
     if (initial == a_) {
-        out->insert(p_);
+        op(*p_);
     }
 }
 
 void
-Prefix::subprocesses(Process::Set* out) const
+Prefix::subprocesses(std::function<void(const Process&)> op) const
 {
-    out->insert(p_);
+    op(*p_);
 }
 
 std::size_t

@@ -58,9 +58,9 @@ ReachableCommand::run(int argc, char** argv)
     }
 
     unsigned long count = 0;
-    process->bfs([&count, verbose](const Process* process) {
+    process->bfs([&count, verbose](const Process& process) {
         if (verbose) {
-            std::cout << *process << std::endl;
+            std::cout << process << std::endl;
         }
         count++;
         return true;

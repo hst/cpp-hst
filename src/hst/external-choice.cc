@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <functional>
 #include <memory>
 #include <ostream>
 
@@ -25,9 +26,10 @@ class ExternalChoice : public Process {
     {
     }
 
-    void initials(Event::Set* out) const override;
-    void afters(Event initial, Process::Set* out) const override;
-    void subprocesses(Process::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -64,7 +66,7 @@ Environment::external_choice(const Process* p, const Process* q)
 //       □ Ps -a→ P'
 
 void
-ExternalChoice::initials(Event::Set* out) const
+ExternalChoice::initials(std::function<void(Event)> op) const
 {
     // 1) If P ∈ Ps can perform τ, then □ Ps can perform τ.
     // 2) If P ∈ Ps can perform a ≠ τ, then □ Ps can perform a ≠ τ.
@@ -74,12 +76,13 @@ ExternalChoice::initials(Event::Set* out) const
     //
     //                = ⋃ { initials(P) | P ∈ Ps }
     for (const Process* p : ps_) {
-        p->initials(out);
+        p->initials(op);
     }
 }
 
 void
-ExternalChoice::afters(Event initial, Process::Set* out) const
+ExternalChoice::afters(Event initial,
+                       std::function<void(const Process&)> op) const
 {
     // afters(□ Ps, τ) = ⋃ { □ Ps ∖ {P} ∪ {P'} | P ∈ Ps, P' ∈ afters(P, τ) }
     //                                                                  [rule 1]
@@ -100,7 +103,7 @@ ExternalChoice::afters(Event initial, Process::Set* out) const
                 // (Ps ∖ {P} ∪ {P'})
                 ps_prime.insert(p_prime);
                 // Create □ (Ps ∖ {P} ∪ {P'}) as a result.
-                out->insert(env_->external_choice(ps_prime));
+                op(*env_->external_choice(ps_prime));
                 // Reset Ps' back to Ps ∖ {P}.
                 ps_prime.erase(p_prime);
             }
@@ -109,15 +112,17 @@ ExternalChoice::afters(Event initial, Process::Set* out) const
         }
     } else {
         for (const Process* p : ps_) {
-            p->afters(initial, out);
+            p->afters(initial, op);
         }
     }
 }
 
 void
-ExternalChoice::subprocesses(Process::Set* out) const
+ExternalChoice::subprocesses(std::function<void(const Process&)> op) const
 {
-    out->insert(ps_.begin(), ps_.end());
+    for (const Process* process : ps_) {
+        op(*process);
+    }
 }
 
 std::size_t

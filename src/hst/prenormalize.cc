@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <functional>
 #include <memory>
 #include <ostream>
 
@@ -25,10 +26,10 @@ class Prenormalization : public NormalizedProcess {
         ps_.tau_close();
     }
 
-    void initials(Event::Set* out) const override;
+    void initials(std::function<void(Event)> op) const override;
     const NormalizedProcess* after(Event initial) const override;
-    void subprocesses(Process::Set* out) const override;
-    void expand(Process::Set* out) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
+    void expand(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
     bool operator==(const Process& other) const override;
@@ -55,14 +56,17 @@ Environment::prenormalize(const Process* p)
 }
 
 void
-Prenormalization::initials(Event::Set* out) const
+Prenormalization::initials(std::function<void(Event)> op) const
 {
     // Find all of the non-τ events that any of the underlying processes can
     // perform.
     for (const Process* p : ps_) {
-        p->initials(out);
+        p->initials([&op](Event initial) {
+            if (initial != Event::tau()) {
+                op(initial);
+            }
+        });
     }
-    out->erase(Event::tau());
 }
 
 const NormalizedProcess*
@@ -77,7 +81,9 @@ Prenormalization::after(Event initial) const
     // our underlying processes and following a single `initial` event.
     Process::Set afters;
     for (const Process* p : ps_) {
-        p->afters(initial, &afters);
+        p->afters(initial, [&afters](const Process& process) {
+            afters.insert(&process);
+        });
     }
 
     // Since a normalized process can only have one `after` for any event, merge
@@ -86,15 +92,19 @@ Prenormalization::after(Event initial) const
 }
 
 void
-Prenormalization::subprocesses(Process::Set* out) const
+Prenormalization::subprocesses(std::function<void(const Process&)> op) const
 {
-    out->insert(ps_.begin(), ps_.end());
+    for (const Process* process : ps_) {
+        op(*process);
+    }
 }
 
 void
-Prenormalization::expand(Process::Set* out) const
+Prenormalization::expand(std::function<void(const Process&)> op) const
 {
-    out->insert(ps_.begin(), ps_.end());
+    for (const Process* process : ps_) {
+        op(*process);
+    }
 }
 
 std::size_t
