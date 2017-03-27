@@ -548,14 +548,14 @@ class ParenthesizedProcess : public Parser {
     }
 };
 
-class Stop : public Parser {
+class Omega : public Parser {
   public:
-    Stop(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
-         const hst::Process** out)
-        : Parser(parent, "STOP")
+    Omega(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+          const hst::Process** out)
+        : Parser(parent, "Ω")
     {
-        return_if_error(attempt<RequireString>("STOP"));
-        *out = env->stop();
+        return_if_error(attempt<RequireString>("Ω"));
+        *out = env->omega();
     }
 };
 
@@ -570,16 +570,28 @@ class Skip : public Parser {
     }
 };
 
+class Stop : public Parser {
+  public:
+    Stop(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
+         const hst::Process** out)
+        : Parser(parent, "STOP")
+    {
+        return_if_error(attempt<RequireString>("STOP"));
+        *out = env->stop();
+    }
+};
+
 class Process1 : public Parser {
   public:
     Process1(Parser* parent, hst::Environment* env, hst::RecursionScope* scope,
              const hst::Process** out)
         : Parser(parent, "process1")
     {
-        // process1 = (process) | STOP | SKIP
+        // process1 = (process) | Ω | STOP | SKIP
         return_if_success(attempt<ParenthesizedProcess>(env, scope, out));
-        return_if_success(attempt<Stop>(env, scope, out));
+        return_if_success(attempt<Omega>(env, scope, out));
         return_if_success(attempt<Skip>(env, scope, out));
+        return_if_success(attempt<Stop>(env, scope, out));
         fail();
     }
 };

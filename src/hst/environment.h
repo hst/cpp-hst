@@ -27,6 +27,7 @@ class Environment {
     const Process* internal_choice(const Process* p, const Process* q);
     const Process* internal_choice(Process::Set ps);
     const Process* prefix(Event a, const Process* p);
+    const Process* omega() const { return omega_; }
     RecursionScope recursion();
     const Process* sequential_composition(const Process* p, const Process* q);
     const Process* skip() const { return skip_; }
@@ -71,6 +72,7 @@ class Environment {
                                         deref_key_equal>;
 
     Registry registry_;
+    const Process* omega_;
     const Process* skip_;
     const Process* stop_;
     Process::Index next_process_index_ = 0;

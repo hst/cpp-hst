@@ -7,6 +7,7 @@
 
 #include "hst/environment.h"
 
+#include <algorithm>
 #include <functional>
 #include <string>
 
@@ -74,11 +75,11 @@ Environment::interleave(const Process* p, const Process* q)
 //       ⫴ Ps -a→ ⫴ (Ps ∖ {P} ∪ {P'})
 //
 //                  P -✔→ P'
-//  3)  ──────────────────────────────── P ∈ Ps
-//       ⫴ Ps -τ→ ⫴ (Ps ∖ {P} ∪ {STOP})
+//  3)  ───────────────────────────── P ∈ Ps
+//       ⫴ Ps -τ→ ⫴ (Ps ∖ {P} ∪ {Ω})
 //
-//  4)  ───────────────────
-//       ⫴ {STOP} -✔→ STOP
+//  4)  ─────────────
+//       ⫴ {Ω} -✔→ Ω
 
 void
 Interleave::initials(std::function<void(Event)> op) const
@@ -88,10 +89,15 @@ Interleave::initials(std::function<void(Event)> op) const
     //                ∪ ⋃ { (✔ ∈ initials(P)? {τ}: {}) | P ∈ Ps }       [rule 3]
     //                ∪ (Ps = {STOP}? {✔}: {})                          [rule 4]
 
-    bool any_events = false;
+    bool any_omegas = false;
+    bool any_non_omegas = false;
     for (const Process* p : ps_) {
-        p->initials([&any_events, &op](Event initial) {
-            any_events = true;
+        if (p == env_->omega()) {
+            any_omegas = true;
+        } else {
+            any_non_omegas = true;
+        }
+        p->initials([&op](Event initial) {
             if (initial == Event::tick()) {
                 // Rule 3
                 op(Event::tau());
@@ -103,7 +109,7 @@ Interleave::initials(std::function<void(Event)> op) const
     }
 
     // Rule 4
-    if (!any_events) {
+    if (any_omegas && !any_non_omegas) {
         op(Event::tick());
     }
 }
@@ -161,12 +167,12 @@ Interleave::tau_afters(Event initial,
             }
         });
         if (any_tick) {
-            // Create Ps ∖ {P} ∪ {STOP}) as a result.
+            // Create Ps ∖ {P} ∪ {Ω}) as a result.
             ps_prime.erase(ps_prime.find(p));
-            ps_prime.insert(env_->stop());
+            ps_prime.insert(env_->omega());
             op(*env_->interleave(ps_prime));
             // Reset Ps' back to Ps.
-            ps_prime.erase(ps_prime.find(env_->stop()));
+            ps_prime.erase(ps_prime.find(env_->omega()));
             ps_prime.insert(p);
         }
     }
@@ -176,17 +182,22 @@ void
 Interleave::tick_afters(Event initial,
                         std::function<void(const Process&)> op) const
 {
-    // afters(⫴ {STOP}, ✔) = {STOP}                                     [rule 4]
-    for (const Process* p : ps_) {
-        bool any_events = false;
-        p->initials([&any_events](Event _) { any_events = true; });
-        if (any_events) {
-            // One of the subprocesses has at least one initial, so this cannot
-            // possibly be ⫴ {STOP}.
-            return;
-        }
+    // afters(⫴ {Ω}, ✔) = {Ω}                                           [rule 4]
+    bool has_non_omega =
+            std::any_of(ps_.begin(), ps_.end(), [this](const Process* process) {
+                return process != env_->omega();
+            });
+    if (has_non_omega) {
+        // At least one of the subprocesses is not Ω, so this cannot possibly be
+        // ⫴ {Ω}.
+        return;
     }
-    op(*env_->stop());
+    if (!ps_.empty()) {
+        // We checked above that there aren't any non-Ω processes, and here
+        // we've checked that there's at least one process, so that means that
+        // all of the processes must be Ω.
+        op(*env_->omega());
+    }
 }
 
 void
