@@ -15,11 +15,69 @@ namespace hst {
 
 namespace {
 
+class Omega : public Process {
+  public:
+    Omega() = default;
+
+    void initials(std::function<void(Event)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
+    void subprocesses(std::function<void(const Process&)> op) const override;
+
+    std::size_t hash() const override;
+    bool operator==(const Process& other) const override;
+    unsigned int precedence() const override { return 1; }
+    void print(std::ostream& out) const override;
+};
+
+}  // namespace
+
+void
+Omega::initials(std::function<void(Event)> op) const
+{
+}
+
+void
+Omega::afters(Event initial, std::function<void(const Process&)> op) const
+{
+}
+
+void
+Omega::subprocesses(std::function<void(const Process&)> op) const
+{
+}
+
+std::size_t
+Omega::hash() const
+{
+    static hash_scope omega;
+    return hasher(omega).value();
+}
+
+bool
+Omega::operator==(const Process& other_) const
+{
+    const Omega* other = dynamic_cast<const Omega*>(&other_);
+    if (other == nullptr) {
+        return false;
+    }
+    return true;
+}
+
+void
+Omega::print(std::ostream& out) const
+{
+    out << "Ω";
+}
+
+namespace {
+
 class Skip : public Process {
   public:
-    explicit Skip(const Process* stop) : stop_(stop) {}
+    explicit Skip(const Process* omega) : omega_(omega) {}
     void initials(std::function<void(Event)> op) const override;
-    void afters(Event initial, std::function<void(const Process&)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
     void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
@@ -28,7 +86,7 @@ class Skip : public Process {
     void print(std::ostream& out) const override;
 
   private:
-    const Process* stop_;
+    const Process* omega_;
 };
 
 }  // namespace
@@ -43,7 +101,7 @@ void
 Skip::afters(Event initial, std::function<void(const Process&)> op) const
 {
     if (initial == Event::tick()) {
-        op(*stop_);
+        op(*omega_);
     }
 }
 
@@ -82,7 +140,8 @@ class Stop : public Process {
     Stop() = default;
 
     void initials(std::function<void(Event)> op) const override;
-    void afters(Event initial, std::function<void(const Process&)> op) const override;
+    void afters(Event initial,
+                std::function<void(const Process&)> op) const override;
     void subprocesses(std::function<void(const Process&)> op) const override;
 
     std::size_t hash() const override;
@@ -133,8 +192,9 @@ Stop::print(std::ostream& out) const
 
 Environment::Environment()
 {
+    omega_ = register_process(new Omega);
+    skip_ = register_process(new Skip(omega_));
     stop_ = register_process(new Stop);
-    skip_ = register_process(new Skip(stop_));
 }
 
 }  // namespace hst

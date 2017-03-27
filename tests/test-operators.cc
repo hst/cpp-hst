@@ -353,12 +353,26 @@ TEST_CASE("STOP ⫴ STOP")
     auto p = "STOP ⫴ STOP";
     check_name(p, "STOP ⫴ STOP");
     check_subprocesses(p, {"STOP"});
-    check_initials(p, {"✔"});
-    check_afters(p, "✔", {"STOP"});
+    check_initials(p, {});
     check_afters(p, "a", {});
     check_afters(p, "τ", {});
-    check_reachable(p, {"STOP ⫴ STOP", "STOP"});
+    check_reachable(p, {"STOP ⫴ STOP"});
     check_tau_closure(p, {"STOP ⫴ STOP"});
+    check_traces_behavior(p, {});
+    check_maximal_traces(p, {{}});
+}
+
+TEST_CASE("Ω ⫴ Ω")
+{
+    auto p = "Ω ⫴ Ω";
+    check_name(p, "Ω ⫴ Ω");
+    check_subprocesses(p, {"Ω"});
+    check_initials(p, {"✔"});
+    check_afters(p, "✔", {"Ω"});
+    check_afters(p, "a", {});
+    check_afters(p, "τ", {});
+    check_reachable(p, {"Ω ⫴ Ω", "Ω"});
+    check_tau_closure(p, {"Ω ⫴ Ω"});
     check_traces_behavior(p, {"✔"});
     check_maximal_traces(p, {{"✔"}});
 }
@@ -376,14 +390,11 @@ TEST_CASE("(a → STOP) ⫴ (b → STOP ⊓ c → STOP)")
             p, {"(a → STOP) ⫴ (b → STOP ⊓ c → STOP)",
                 "STOP ⫴ (b → STOP ⊓ c → STOP)", "STOP ⫴ b → STOP",
                 "STOP ⫴ c → STOP", "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP",
-                "a → STOP ⫴ STOP", "STOP ⫴ STOP", "STOP"});
+                "a → STOP ⫴ STOP", "STOP ⫴ STOP"});
     check_tau_closure(p, {"(a → STOP) ⫴ (b → STOP ⊓ c → STOP)",
                           "a → STOP ⫴ b → STOP", "a → STOP ⫴ c → STOP"});
     check_traces_behavior(p, {"a"});
-    check_maximal_traces(p, {{"a", "b", "✔"},
-                             {"a", "c", "✔"},
-                             {"b", "a", "✔"},
-                             {"c", "a", "✔"}});
+    check_maximal_traces(p, {{"a", "b"}, {"a", "c"}, {"b", "a"}, {"c", "a"}});
 }
 
 TEST_CASE("a → STOP ⫴ a → STOP")
@@ -395,11 +406,11 @@ TEST_CASE("a → STOP ⫴ a → STOP")
     check_afters(p, "a", {"STOP ⫴ a → STOP"});
     check_afters(p, "b", {});
     check_afters(p, "τ", {});
-    check_reachable(p, {"a → STOP ⫴ a → STOP", "a → STOP ⫴ STOP", "STOP ⫴ STOP",
-                        "STOP"});
+    check_reachable(p,
+                    {"a → STOP ⫴ a → STOP", "a → STOP ⫴ STOP", "STOP ⫴ STOP"});
     check_tau_closure(p, {"a → STOP ⫴ a → STOP"});
     check_traces_behavior(p, {"a"});
-    check_maximal_traces(p, {{"a", "a", "✔"}});
+    check_maximal_traces(p, {{"a", "a"}});
 }
 
 TEST_CASE("a → STOP ⫴ b → STOP")
@@ -412,10 +423,10 @@ TEST_CASE("a → STOP ⫴ b → STOP")
     check_afters(p, "b", {"a → STOP ⫴ STOP"});
     check_afters(p, "τ", {});
     check_reachable(p, {"a → STOP ⫴ b → STOP", "a → STOP ⫴ STOP",
-                        "STOP ⫴ b → STOP", "STOP ⫴ STOP", "STOP"});
+                        "STOP ⫴ b → STOP", "STOP ⫴ STOP"});
     check_tau_closure(p, {"a → STOP ⫴ b → STOP"});
     check_traces_behavior(p, {"a", "b"});
-    check_maximal_traces(p, {{"a", "b", "✔"}, {"b", "a", "✔"}});
+    check_maximal_traces(p, {{"a", "b"}, {"b", "a"}});
 }
 
 TEST_CASE("a → SKIP ⫴ b → SKIP")
@@ -429,8 +440,8 @@ TEST_CASE("a → SKIP ⫴ b → SKIP")
     check_afters(p, "τ", {});
     check_afters(p, "✔", {});
     check_reachable(p, {"a → SKIP ⫴ b → SKIP", "a → SKIP ⫴ SKIP",
-                        "a → SKIP ⫴ STOP", "SKIP ⫴ b → SKIP", "STOP ⫴ b → SKIP",
-                        "STOP ⫴ SKIP", "STOP ⫴ STOP", "SKIP ⫴ SKIP", "STOP"});
+                        "a → SKIP ⫴ Ω", "SKIP ⫴ b → SKIP", "Ω ⫴ b → SKIP",
+                        "Ω ⫴ SKIP", "Ω ⫴ Ω", "SKIP ⫴ SKIP", "Ω"});
     check_tau_closure(p, {"a → SKIP ⫴ b → SKIP"});
     check_traces_behavior(p, {"a", "b"});
     check_maximal_traces(p, {{"a", "b", "✔"}, {"b", "a", "✔"}});
@@ -447,9 +458,9 @@ TEST_CASE("(a → SKIP ⫴ b → SKIP) ; c → STOP")
     check_afters(p, "τ", {});
     check_reachable(
             p, {"(a → SKIP ⫴ b → SKIP) ; c → STOP",
-                "(a → SKIP ⫴ SKIP) ; c → STOP", "(a → SKIP ⫴ STOP) ; c → STOP",
-                "(SKIP ⫴ b → SKIP) ; c → STOP", "(STOP ⫴ b → SKIP) ; c → STOP",
-                "(STOP ⫴ SKIP) ; c → STOP", "(STOP ⫴ STOP) ; c → STOP",
+                "(a → SKIP ⫴ SKIP) ; c → STOP", "(a → SKIP ⫴ Ω) ; c → STOP",
+                "(SKIP ⫴ b → SKIP) ; c → STOP", "(Ω ⫴ b → SKIP) ; c → STOP",
+                "(Ω ⫴ SKIP) ; c → STOP", "(Ω ⫴ Ω) ; c → STOP",
                 "(SKIP ⫴ SKIP) ; c → STOP", "c → STOP", "STOP"});
     check_tau_closure(p, {"(a → SKIP ⫴ b → SKIP) ; c → STOP"});
     check_traces_behavior(p, {"a", "b"});
@@ -471,15 +482,15 @@ TEST_CASE("⫴ {a → STOP, b → STOP, c → STOP}")
             {"⫴ {a → STOP, b → STOP, c → STOP}", "⫴ {STOP, a → STOP, b → STOP}",
              "⫴ {STOP, a → STOP, c → STOP}", "⫴ {STOP, b → STOP, c → STOP}",
              "⫴ {STOP, STOP, a → STOP}", "⫴ {STOP, STOP, b → STOP}",
-             "⫴ {STOP, STOP, c → STOP}", "⫴ {STOP, STOP, STOP}", "STOP"});
+             "⫴ {STOP, STOP, c → STOP}", "⫴ {STOP, STOP, STOP}"});
     check_tau_closure(p, {"⫴ {a → STOP, b → STOP, c → STOP}"});
     check_traces_behavior(p, {"a", "b", "c"});
-    check_maximal_traces(p, {{"a", "b", "c", "✔"},
-                             {"a", "c", "b", "✔"},
-                             {"b", "a", "c", "✔"},
-                             {"b", "c", "a", "✔"},
-                             {"c", "a", "b", "✔"},
-                             {"c", "b", "a", "✔"}});
+    check_maximal_traces(p, {{"a", "b", "c"},
+                             {"a", "c", "b"},
+                             {"b", "a", "c"},
+                             {"b", "c", "a"},
+                             {"c", "a", "b"},
+                             {"c", "b", "a"}});
 }
 
 TEST_CASE_GROUP("internal choice");
@@ -613,8 +624,8 @@ TEST_CASE("SKIP")
     check_initials(skip, {"✔"});
     check_afters(skip, "a", {});
     check_afters(skip, "τ", {});
-    check_afters(skip, "✔", {"STOP"});
-    check_reachable(skip, {"SKIP", "STOP"});
+    check_afters(skip, "✔", {"Ω"});
+    check_reachable(skip, {"SKIP", "Ω"});
     check_tau_closure(skip, {"SKIP"});
     check_traces_behavior(skip, {"✔"});
     check_maximal_traces(skip, {{"✔"}});

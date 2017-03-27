@@ -99,6 +99,16 @@ TEST_CASE("can parse debug recursion identifiers")
 
 TEST_CASE_GROUP("CSP₀ primitives");
 
+TEST_CASE("parse: Ω")
+{
+    Environment env;
+    auto expected = env.omega();
+    check_csp0_eq(&env, "Ω", expected);
+    check_csp0_eq(&env, " Ω", expected);
+    check_csp0_eq(&env, "Ω ", expected);
+    check_csp0_eq(&env, " Ω ", expected);
+}
+
 TEST_CASE("parse: STOP")
 {
     Environment env;
